@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NNEX Flow Dashboard — インバウンド人流モニター</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/prop-types@15/prop-types.min.js" crossorigin></script>
+<script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js" crossorigin></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #080C10; font-size: 18px; }
+
+.db-root {
+  font-family: 'Noto Sans JP', sans-serif;
+  background: #080C10;
+  min-height: 100vh;
+  color: #C8D6E5;
+  padding: 0;
+}
+
+/* Header */
+.db-header {
+  padding: 28px 32px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding-bottom: 20px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+.db-eyebrow {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  color: #3D7FBF;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.db-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  color: #EAF0F8;
+  letter-spacing: -0.01em;
+}
+.db-subtitle {
+  font-size: 14px;
+  color: #5A7A96;
+  margin-top: 3px;
+}
+.db-timestamp {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: #3D5A70;
+  text-align: right;
+  line-height: 1.8;
+}
+.db-timestamp span { color: #2A8FD4; }
+
+/* Tabs */
+.db-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 32px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  align-items: center;
+}
+.db-tab {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  padding: 14px 20px 12px;
+  cursor: pointer;
+  color: #3D5A70;
+  border: none;
+  background: none;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  position: relative;
+  top: 1px;
+}
+.db-tab:hover { color: #7AAFD4; }
+.db-tab.active { color: #EAF0F8; border-bottom-color: #2A8FD4; }
+.db-tab .dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  margin-right: 7px;
+  vertical-middle: middle;
+}
+.dot-realtime { background: #E05555; animation: pulse-dot 1.5s infinite; }
+.dot-monthly { background: #2A8FD4; }
+.dot-annual { background: #F0B429; }
+.dot-fixed { background: #4CAF82; }
+.dot-poi { background: #D81B60; }
+
+/* POI Map tab */
+.poi-map-container {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: #0E1520;
+}
+.poi-map-container iframe {
+  width: 100%;
+  height: calc(100vh - 180px);
+  min-height: 500px;
+  border: none;
+  display: block;
+}
+.poi-map-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.settings-btn {
+  margin-left: auto;
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  padding: 6px 14px;
+  cursor: pointer;
+  color: #3D5A70;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.03);
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+.settings-btn:hover { color: #7AAFD4; border-color: rgba(42,143,212,0.3); }
+
+/* Content */
+.db-content { padding: 24px 32px 40px; }
+
+/* Section label */
+.section-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: #3D5A70;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+/* Grid layouts */
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
+.grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 20px; }
+
+/* KPI Card */
+.kpi-card {
+  background: #0E1520;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+}
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent, #2A8FD4), transparent);
+  opacity: 0.6;
+}
+.kpi-label { font-size: 12px; color: #4A6A84; margin-bottom: 10px; letter-spacing: 0.05em; }
+.kpi-value {
+  font-family: 'Syne', sans-serif;
+  font-size: 30px;
+  font-weight: 800;
+  color: #EAF0F8;
+  line-height: 1;
+  margin-bottom: 6px;
+  letter-spacing: -0.02em;
+}
+.kpi-value .unit { font-size: 15px; font-weight: 600; color: #5A8AAA; margin-left: 3px; }
+.kpi-change { font-family: 'Space Mono', monospace; font-size: 12px; }
+.kpi-change.up { color: #4CAF82; }
+.kpi-change.down { color: #E05555; }
+.kpi-change.neutral { color: #5A7A96; }
+.kpi-source { font-size: 11px; color: #2A3D50; margin-top: 8px; font-family: 'Space Mono', monospace; }
+
+/* Chart card */
+.chart-card {
+  background: #0E1520;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 20px;
+}
+.chart-title { font-size: 13px; color: #7AAFD4; margin-bottom: 16px; font-weight: 500; }
+
+/* Bar rows */
+.bar-row { display: flex; align-items: center; margin-bottom: 10px; gap: 10px; }
+.bar-row-label { font-size: 13px; color: #7AAFD4; width: 100px; flex-shrink: 0; text-align: right; }
+.bar-row-track { flex: 1; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; }
+.bar-row-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+.bar-row-val { font-family: 'Space Mono', monospace; font-size: 12px; color: #5A8AAA; width: 70px; flex-shrink: 0; }
+
+/* Table */
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: #3D5A70;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0 10px 10px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.data-table td {
+  font-size: 14px;
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  color: #C8D6E5;
+}
+.data-table td.mono { font-family: 'Space Mono', monospace; font-size: 13px; }
+.data-table td.rank { font-family: 'Space Mono', monospace; font-size: 12px; color: #3D5A70; }
+.data-table td.up { color: #4CAF82; font-family: 'Space Mono', monospace; font-size: 12px; }
+.data-table td.down { color: #E05555; font-family: 'Space Mono', monospace; font-size: 12px; }
+.data-table tr:hover td { background: rgba(42,143,212,0.04); }
+
+/* Update badge */
+.update-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.1em;
+}
+.badge-realtime { background: rgba(224,85,85,0.12); color: #E05555; border: 1px solid rgba(224,85,85,0.2); }
+.badge-monthly { background: rgba(42,143,212,0.12); color: #2A8FD4; border: 1px solid rgba(42,143,212,0.2); }
+.badge-annual { background: rgba(240,180,41,0.1); color: #F0B429; border: 1px solid rgba(240,180,41,0.2); }
+.badge-fixed { background: rgba(76,175,130,0.1); color: #4CAF82; border: 1px solid rgba(76,175,130,0.2); }
+
+.source-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.divider { height: 1px; background: rgba(255,255,255,0.04); margin: 20px 0; }
+.highlight-num { font-family: 'Space Mono', monospace; color: #F0B429; }
+
+.target-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(240,180,41,0.06);
+  border: 1px solid rgba(240,180,41,0.15);
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+.target-label { font-size: 13px; color: #8A9AAA; }
+.target-val { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 20px; color: #F0B429; margin-left: auto; }
+
+.two-col-stat { display: flex; gap: 0; }
+.col-stat { flex: 1; padding: 14px 16px; border-right: 1px solid rgba(255,255,255,0.05); }
+.col-stat:last-child { border-right: none; }
+.col-stat-label { font-size: 12px; color: #4A6A84; margin-bottom: 6px; }
+.col-stat-val { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 22px; color: #EAF0F8; }
+.col-stat-sub { font-family: 'Space Mono', monospace; font-size: 11px; color: #4CAF82; margin-top: 3px; }
+
+/* Settings modal */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal-card {
+  background: #0E1520;
+  border: 1px solid rgba(42,143,212,0.2);
+  border-radius: 12px;
+  padding: 28px 32px;
+  width: 480px;
+  max-width: 90vw;
+}
+.modal-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #EAF0F8;
+  margin-bottom: 20px;
+}
+.modal-label {
+  font-size: 12px;
+  color: #5A8AAA;
+  margin-bottom: 6px;
+  font-family: 'Space Mono', monospace;
+  letter-spacing: 0.1em;
+}
+.modal-input {
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  padding: 10px 14px;
+  color: #EAF0F8;
+  font-family: 'Space Mono', monospace;
+  font-size: 14px;
+  margin-bottom: 16px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.modal-input:focus { border-color: rgba(42,143,212,0.5); }
+.modal-input::placeholder { color: #2A3D50; }
+.modal-hint { font-size: 11px; color: #2A3D50; margin-top: -12px; margin-bottom: 16px; font-family: 'Space Mono', monospace; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
+.modal-btn {
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  padding: 8px 20px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.modal-btn-primary { background: #2A8FD4; color: #fff; }
+.modal-btn-primary:hover { background: #3DA0E0; }
+.modal-btn-secondary { background: rgba(255,255,255,0.06); color: #7AAFD4; }
+.modal-btn-secondary:hover { background: rgba(255,255,255,0.1); }
+
+/* Status indicator */
+.api-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  margin-bottom: 16px;
+}
+.api-ok { color: #4CAF82; background: rgba(76,175,130,0.1); }
+.api-err { color: #E05555; background: rgba(224,85,85,0.1); }
+.api-none { color: #3D5A70; background: rgba(255,255,255,0.03); }
+
+/* Congestion level */
+.congestion-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.congestion-card {
+  background: #0E1520;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.congestion-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--level-color, #2A8FD4);
+  opacity: 0.8;
+}
+.congestion-station {
+  font-size: 15px;
+  font-weight: 500;
+  color: #EAF0F8;
+  margin-bottom: 4px;
+}
+.congestion-line {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: #3D5A70;
+  margin-bottom: 10px;
+}
+.congestion-level {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.congestion-bar-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.congestion-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 1s ease;
+}
+.congestion-pct {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--level-color, #2A8FD4);
+  min-width: 50px;
+  text-align: right;
+}
+.congestion-time {
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: #2A3D50;
+  margin-top: 6px;
+}
+
+/* Loading spinner */
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(42,143,212,0.2);
+  border-top-color: #2A8FD4;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #3D5A70;
+  font-size: 14px;
+}
+.empty-state .icon { font-size: 34px; margin-bottom: 12px; opacity: 0.4; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: 1fr; }
+  .grid-2 { grid-template-columns: 1fr; }
+  .grid-2-1 { grid-template-columns: 1fr; }
+  .db-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .db-timestamp { text-align: left; }
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/javascript">
+const { useState, useEffect, useCallback, useRef } = React;
+const {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  LineChart, Line, CartesianGrid, Cell, AreaChart, Area
+} = Recharts;
+
+// ─────────────────────────────────────────────
+// データ定義（手動更新セクション）
+// ─────────────────────────────────────────────
+
+// JNTO 訪日外客数 月次推計値（手動更新）
+// 出典: https://www.jnto.go.jp/statistics/visitor-statistics/
+// 最終更新: 2026-04-01
+const JNTO_MONTHLY_2025 = [
+  { month: "1月", visitors: 331 },
+  { month: "2月", visitors: 289 },
+  { month: "3月", visitors: 381 },
+  { month: "4月", visitors: 391 },
+  { month: "5月", visitors: 378 },
+  { month: "6月", visitors: 352 },
+  { month: "7月", visitors: 344 },
+  { month: "8月", visitors: 343 },
+  { month: "9月", visitors: 327 },
+  { month: "10月", visitors: 360 },
+  { month: "11月", visitors: 352 },
+  { month: "12月", visitors: 362 },
+];
+
+const JNTO_ANNUAL = [
+  { year: 2019, visitors: 3188, label: "コロナ前最高" },
+  { year: 2024, visitors: 3687, label: "前過去最高" },
+  { year: 2025, visitors: 4268, label: "現過去最高" },
+];
+
+// 国籍別 2025年累計推計値（JNTO）
+const NATIONALITY_2025 = [
+  { flag: "\u{1F1F0}\u{1F1F7}", name: "韓国", val: 946 },
+  { flag: "\u{1F1E8}\u{1F1F3}", name: "中国", val: 910 },
+  { flag: "\u{1F1F9}\u{1F1FC}", name: "台湾", val: 676 },
+  { flag: "\u{1F1FA}\u{1F1F8}", name: "米国", val: 331 },
+  { flag: "\u{1F1ED}\u{1F1F0}", name: "香港", val: 252 },
+  { flag: "\u{1F1E6}\u{1F1FA}", name: "豪州", val: 106 },
+];
+
+// 都道府県別 外国人延べ宿泊者数（観光庁 2024年確定値）
+const PREF_STAY_2024 = [
+  { pref: "東京都", nights: 5720, yoy: "+38.9%" },
+  { pref: "大阪府", nights: 2534, yoy: "+42.1%" },
+  { pref: "京都府", nights: 1661, yoy: "+35.2%" },
+  { pref: "北海道", nights: 965,  yoy: "+28.4%" },
+  { pref: "沖縄県", nights: 733,  yoy: "+21.7%" },
+  { pref: "福岡県", nights: 692,  yoy: "+37.3%" },
+];
+
+// JR東日本 主要駅 1日平均乗車人員（2024年度）
+const STATION_DATA = [
+  { station: "新宿", ridership: 667, change: "+2.5%", note: "JR乗車のみ" },
+  { station: "池袋", ridership: 499, change: "+1.9%", note: "JR乗車のみ" },
+  { station: "東京", ridership: 435, change: "+7.6%", note: "JR乗車のみ" },
+  { station: "渋谷", ridership: 350, change: "+3.1%", note: "JR乗車のみ（概算）" },
+  { station: "品川", ridership: 310, change: "+4.2%", note: "JR乗車のみ（概算）" },
+];
+
+// 駅別全社合計乗降客数（国土交通省 令和5年度）
+const STATION_ALL = [
+  { station: "新宿（全社）", val: 152 },
+  { station: "渋谷（全社）", val: 113 },
+  { station: "池袋（全社）", val: 111 },
+  { station: "東京（JR+メトロ）", val: 87 },
+  { station: "大阪（JR）", val: 86 },
+];
+
+// 東京エリア外国人訪問率（東京都 令和6年調査）
+const AREA_VISIT = [
+  { area: "新宿／歌舞伎町", rate: 68.4 },
+  { area: "渋谷", rate: 62.6 },
+  { area: "浅草", rate: 60.3 },
+  { area: "原宿／表参道", rate: 54.1 },
+  { area: "銀座", rate: 51.8 },
+  { area: "秋葉原", rate: 48.2 },
+];
+
+// 消費構造（観光庁 2024年確定値）
+const SPENDING_2024 = [
+  { name: "宿泊費", pct: 33.6, val: "2.7兆円" },
+  { name: "飲食費", pct: 22.4, val: "1.8兆円" },
+  { name: "買物代", pct: 19.7, val: "1.6兆円" },
+  { name: "交通費", pct: 13.4, val: "1.1兆円" },
+  { name: "娯楽費", pct: 10.9, val: "0.9兆円" },
+];
+
+// ─────────────────────────────────────────────
+// ODPT API — 鉄道混雑度
+// ─────────────────────────────────────────────
+
+// 渋谷・新宿周辺の主要路線
+const TARGET_RAILWAYS = [
+  { operator: "odpt.Operator:TokyoMetro", lines: ["odpt.Railway:TokyoMetro.Ginza", "odpt.Railway:TokyoMetro.Hanzomon", "odpt.Railway:TokyoMetro.Fukutoshin"], label: "東京メトロ" },
+  { operator: "odpt.Operator:Toei", lines: ["odpt.Railway:Toei.Oedo"], label: "都営" },
+];
+
+const CONGESTION_COLORS = {
+  low: "#4CAF82",    // ~50%
+  medium: "#F0B429",  // 50-100%
+  high: "#E07030",   // 100-150%
+  extreme: "#E05555", // 150%+
+};
+
+function getCongestionColor(pct) {
+  if (pct <= 50) return CONGESTION_COLORS.low;
+  if (pct <= 100) return CONGESTION_COLORS.medium;
+  if (pct <= 150) return CONGESTION_COLORS.high;
+  return CONGESTION_COLORS.extreme;
+}
+
+function getCongestionLabel(pct) {
+  if (pct <= 50) return "空いている";
+  if (pct <= 100) return "通常";
+  if (pct <= 150) return "混雑";
+  return "非常に混雑";
+}
+
+// ─────────────────────────────────────────────
+// e-Stat API — 宿泊旅行統計
+// ─────────────────────────────────────────────
+
+// 宿泊旅行統計調査 statsDataId
+const ESTAT_SHUKUHAKU_ID = "0003427354"; // 都道府県別外国人延べ宿泊者数
+
+async function fetchEstatData(appId) {
+  const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${appId}&statsDataId=${ESTAT_SHUKUHAKU_ID}&limit=100`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`e-Stat API error: ${res.status}`);
+  const data = await res.json();
+  return data;
+}
+
+// ─────────────────────────────────────────────
+// ODPT API — フェッチ
+// ─────────────────────────────────────────────
+
+async function fetchODPTCongestion(apiKey) {
+  // ODPT APIはCORS制限があるため、直接フェッチを試みる
+  const url = `https://api.odpt.org/api/v4/odpt:TrainInformation?acl:consumerKey=${apiKey}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`ODPT API error: ${res.status}`);
+  return await res.json();
+}
+
+async function fetchODPTTrainType(apiKey) {
+  // 列車ロケーション情報（混雑度を含む場合あり）
+  const url = `https://api.odpt.org/api/v4/odpt:Train?acl:consumerKey=${apiKey}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`ODPT API error: ${res.status}`);
+  return await res.json();
+}
+
+// ─────────────────────────────────────────────
+// カスタムToolTip
+// ─────────────────────────────────────────────
+
+const CustomTooltip = ({ active, payload, label, unit }) => {
+  if (active && payload && payload.length) {
+    return React.createElement("div", {
+      style: { background: "#0E1520", border: "1px solid rgba(42,143,212,0.3)", borderRadius: 6, padding: "8px 12px" }
+    },
+      React.createElement("div", { style: { fontFamily: "'Space Mono',monospace", fontSize: 12, color: "#7AAFD4" } }, label),
+      React.createElement("div", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 18, color: "#EAF0F8" } },
+        payload[0].value,
+        React.createElement("span", { style: { fontSize: 12, color: "#5A8AAA", marginLeft: 3 } }, unit || "")
+      )
+    );
+  }
+  return null;
+};
+
+// ─────────────────────────────────────────────
+// 設定モーダル
+// ─────────────────────────────────────────────
+
+function SettingsModal({ show, onClose, keys, onSave }) {
+  const [estat, setEstat] = useState(keys.estat || "");
+  const [odpt, setOdpt] = useState(keys.odpt || "");
+
+  if (!show) return null;
+
+  return React.createElement("div", { className: "modal-overlay", onClick: onClose },
+    React.createElement("div", { className: "modal-card", onClick: e => e.stopPropagation() },
+      React.createElement("div", { className: "modal-title" }, "API Settings"),
+
+      React.createElement("div", { className: "modal-label" }, "E-STAT APP ID"),
+      React.createElement("input", {
+        className: "modal-input",
+        value: estat,
+        onChange: e => setEstat(e.target.value),
+        placeholder: "e-Stat API アプリケーションIDを入力"
+      }),
+      React.createElement("div", { className: "modal-hint" },
+        "\u2192 https://www.e-stat.go.jp/api/ \u3067\u7121\u6599\u53D6\u5F97"
+      ),
+
+      React.createElement("div", { className: "modal-label" }, "ODPT CONSUMER KEY"),
+      React.createElement("input", {
+        className: "modal-input",
+        value: odpt,
+        onChange: e => setOdpt(e.target.value),
+        placeholder: "ODPT API Consumer Key\u3092\u5165\u529B"
+      }),
+      React.createElement("div", { className: "modal-hint" },
+        "\u2192 https://developer.odpt.org/ \u3067\u7121\u6599\u767B\u9332"
+      ),
+
+      React.createElement("div", { className: "modal-actions" },
+        React.createElement("button", {
+          className: "modal-btn modal-btn-secondary",
+          onClick: onClose
+        }, "Cancel"),
+        React.createElement("button", {
+          className: "modal-btn modal-btn-primary",
+          onClick: () => { onSave({ estat, odpt }); onClose(); }
+        }, "Save")
+      )
+    )
+  );
+}
+
+// ─────────────────────────────────────────────
+// リアルタイムタブ
+// ─────────────────────────────────────────────
+
+function RealtimeTab({ apiKeys }) {
+  const [trainInfo, setTrainInfo] = useState(null);
+  const [trainData, setTrainData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [lastUpdate, setLastUpdate] = useState(null);
+  const intervalRef = useRef(null);
+
+  const fetchData = useCallback(async () => {
+    if (!apiKeys.odpt) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const [info, trains] = await Promise.all([
+        fetchODPTCongestion(apiKeys.odpt),
+        fetchODPTTrainType(apiKeys.odpt),
+      ]);
+      setTrainInfo(info);
+      setTrainData(trains);
+      setLastUpdate(new Date());
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [apiKeys.odpt]);
+
+  useEffect(() => {
+    fetchData();
+    intervalRef.current = setInterval(fetchData, 60000); // 60秒ごと更新
+    return () => clearInterval(intervalRef.current);
+  }, [fetchData]);
+
+  // 渋谷関連路線の運行情報をフィルタ
+  const shibuyaTrainInfo = trainInfo ? trainInfo.filter(info => {
+    const rail = info["odpt:railway"] || "";
+    return rail.includes("Ginza") || rail.includes("Hanzomon") ||
+           rail.includes("Fukutoshin") || rail.includes("Oedo") ||
+           rail.includes("Yamanote") || rail.includes("SaikyoKawagoe") ||
+           rail.includes("Denentoshi") || rail.includes("Toyoko") ||
+           rail.includes("Keio.Inokashira");
+  }) : [];
+
+  // 混雑度データを持つ列車をフィルタ（渋谷駅周辺）
+  const congestionTrains = trainData ? trainData.filter(t => {
+    const rail = t["odpt:railway"] || "";
+    const congestion = t["odpt:congestionDegree"];
+    return congestion !== undefined && (
+      rail.includes("Ginza") || rail.includes("Hanzomon") ||
+      rail.includes("Fukutoshin") || rail.includes("Oedo") ||
+      rail.includes("Yamanote") || rail.includes("Denentoshi") ||
+      rail.includes("Toyoko")
+    );
+  }) : [];
+
+  if (!apiKeys.odpt) {
+    return React.createElement("div", { className: "empty-state" },
+      React.createElement("div", { className: "icon" }, "\u{1F6C8}"),
+      React.createElement("div", null, "ODPT API\u30AD\u30FC\u304C\u8A2D\u5B9A\u3055\u308C\u3066\u3044\u307E\u305B\u3093"),
+      React.createElement("div", { style: { marginTop: 6, fontSize: 12, color: "#2A3D50" } },
+        "\u53F3\u4E0A\u306E Settings \u304B\u3089 Consumer Key \u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044"
+      )
+    );
+  }
+
+  // 路線名を日本語に変換
+  function railwayName(id) {
+    const map = {
+      "TokyoMetro.Ginza": "銀座線",
+      "TokyoMetro.Hanzomon": "半蔵門線",
+      "TokyoMetro.Fukutoshin": "副都心線",
+      "Toei.Oedo": "大江戸線",
+      "JR-East.Yamanote": "山手線",
+      "JR-East.SaikyoKawagoe": "埼京線",
+      "Tokyu.Denentoshi": "田園都市線",
+      "Tokyu.Toyoko": "東横線",
+      "Keio.Inokashira": "井の頭線",
+      "TokyoMetro.Marunouchi": "丸ノ内線",
+      "TokyoMetro.Hibiya": "日比谷線",
+      "TokyoMetro.Chiyoda": "千代田線",
+      "Toei.Shinjuku": "新宿線",
+      "Toei.Asakusa": "浅草線",
+      "Toei.Mita": "三田線",
+    };
+    for (const [key, val] of Object.entries(map)) {
+      if (id && id.includes(key)) return val;
+    }
+    return id ? id.split(".").pop() : "不明";
+  }
+
+  function statusColor(status) {
+    if (!status || status.includes("平常")) return "#4CAF82";
+    if (status.includes("遅延")) return "#F0B429";
+    return "#E05555";
+  }
+
+  return React.createElement(React.Fragment, null,
+    // ヘッダ
+    React.createElement("div", { className: "source-row" },
+      React.createElement("div", { className: "section-label", style: { marginBottom: 0 } },
+        "\u6E0B\u8C37\u30FB\u65B0\u5BBF\u5468\u8FBA \u9244\u9053\u904B\u884C\u60C5\u5831"
+      ),
+      React.createElement("span", { className: "update-badge badge-realtime" },
+        loading ? React.createElement("span", { className: "spinner" }) : "\u25CF",
+        " ODPT API / 60\u79D2\u3054\u3068\u66F4\u65B0"
+      )
+    ),
+
+    lastUpdate && React.createElement("div", {
+      style: { fontFamily: "'Space Mono',monospace", fontSize: 11, color: "#2A3D50", marginBottom: 14 }
+    }, "\u6700\u7D42\u53D6\u5F97: " + lastUpdate.toLocaleTimeString("ja-JP")),
+
+    error && React.createElement("div", {
+      style: { padding: "10px 14px", background: "rgba(224,85,85,0.08)", border: "1px solid rgba(224,85,85,0.2)", borderRadius: 6, marginBottom: 14, fontSize: 13, color: "#E05555" }
+    }, "API\u30A8\u30E9\u30FC: " + error),
+
+    // 運行情報カード
+    shibuyaTrainInfo.length > 0 ? React.createElement("div", { className: "congestion-grid", style: { marginBottom: 20 } },
+      shibuyaTrainInfo.map((info, i) => {
+        const status = info["odpt:trainInformationText"] && (info["odpt:trainInformationText"]["ja"] || info["odpt:trainInformationText"]) || "情報なし";
+        const rail = info["odpt:railway"] || "";
+        const color = statusColor(typeof status === "string" ? status : "");
+        return React.createElement("div", { className: "congestion-card", key: i, style: { "--level-color": color } },
+          React.createElement("div", { className: "congestion-station" }, railwayName(rail)),
+          React.createElement("div", {
+            style: { fontSize: 13, color: color, marginTop: 8, lineHeight: 1.6 }
+          }, typeof status === "string" ? status : JSON.stringify(status))
+        );
+      })
+    ) : (!loading && React.createElement("div", {
+      style: { padding: "20px", background: "#0E1520", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, marginBottom: 20, textAlign: "center", fontSize: 13, color: "#3D5A70" }
+    }, "\u904B\u884C\u60C5\u5831\u306E\u53D6\u5F97\u4E2D\u2026")),
+
+    // 混雑度データ
+    congestionTrains.length > 0 && React.createElement(React.Fragment, null,
+      React.createElement("div", { className: "source-row", style: { marginTop: 4 } },
+        React.createElement("div", { className: "section-label", style: { marginBottom: 0 } },
+          "\u5217\u8ECA\u6DF7\u96D1\u5EA6\uFF08\u30EA\u30A2\u30EB\u30BF\u30A4\u30E0\uFF09"
+        )
+      ),
+      React.createElement("div", { className: "congestion-grid" },
+        congestionTrains.slice(0, 12).map((t, i) => {
+          const pct = (t["odpt:congestionDegree"] || 0) * 25;
+          const color = getCongestionColor(pct);
+          return React.createElement("div", { className: "congestion-card", key: i, style: { "--level-color": color } },
+            React.createElement("div", { className: "congestion-station" }, railwayName(t["odpt:railway"])),
+            React.createElement("div", { className: "congestion-line" }, t["odpt:trainNumber"] || ""),
+            React.createElement("div", { className: "congestion-level" },
+              React.createElement("div", { className: "congestion-bar-track" },
+                React.createElement("div", { className: "congestion-bar-fill", style: { width: Math.min(pct, 100) + "%", background: color } })
+              ),
+              React.createElement("div", { className: "congestion-pct", style: { "--level-color": color, color: color } },
+                getCongestionLabel(pct)
+              )
+            )
+          );
+        })
+      )
+    ),
+
+    // ODPT以外のリアルタイム系情報
+    React.createElement("div", { className: "divider" }),
+    React.createElement("div", { className: "source-row" },
+      React.createElement("div", { className: "section-label", style: { marginBottom: 0 } },
+        "\u6E0B\u8C37\u99C5\u5468\u8FBA \u4EBA\u6D41\u63A8\u5B9A"
+      ),
+      React.createElement("span", { className: "update-badge badge-fixed" }, "\u25CF \u624B\u52D5\u66F4\u65B0 / \u5404\u7A2E\u30C7\u30FC\u30BF\u3088\u308A\u63A8\u5B9A")
+    ),
+    React.createElement("div", { className: "grid-3", style: { marginTop: 14 } },
+      React.createElement("div", { className: "kpi-card", style: { "--accent": "#2A8FD4" } },
+        React.createElement("div", { className: "kpi-label" }, "\u6E0B\u8C37\u99C5 1\u65E5\u4E57\u964D\u5BA2\u6570"),
+        React.createElement("div", { className: "kpi-value" }, "113", React.createElement("span", { className: "unit" }, "\u4E07\u4EBA/\u65E5")),
+        React.createElement("div", { className: "kpi-change up" }, "\u25B2 \u5168\u793E\u5408\u8A08"),
+        React.createElement("div", { className: "kpi-source" }, "\u56FD\u571F\u4EA4\u901A\u7701 \u4EE4\u548C5\u5E74\u5EA6")
+      ),
+      React.createElement("div", { className: "kpi-card", style: { "--accent": "#F0B429" } },
+        React.createElement("div", { className: "kpi-label" }, "\u6E0B\u8C37\u30A8\u30EA\u30A2 \u5916\u56FD\u4EBA\u8A2A\u554F\u7387"),
+        React.createElement("div", { className: "kpi-value" }, "62.6", React.createElement("span", { className: "unit" }, "%")),
+        React.createElement("div", { className: "kpi-change up" }, "\u25B2 \u8A2A\u65E5\u5916\u56FD\u4EBA\u306E6\u5272\u4EE5\u4E0A"),
+        React.createElement("div", { className: "kpi-source" }, "\u6771\u4EAC\u90FD \u4EE4\u548C6\u5E74\u8ABF\u67FB")
+      ),
+      React.createElement("div", { className: "kpi-card", style: { "--accent": "#4CAF82" } },
+        React.createElement("div", { className: "kpi-label" }, "\u6E0B\u8C37109\u5468\u8FBA \u63A8\u5B9A\u5916\u56FD\u4EBA\u6765\u8A2A"),
+        React.createElement("div", { className: "kpi-value" }, "~1,000", React.createElement("span", { className: "unit" }, "\u4EBA/\u65E5")),
+        React.createElement("div", { className: "kpi-change neutral" }, "NNEX\u5B9F\u8A3C\u65BD\u8A2D"),
+        React.createElement("div", { className: "kpi-source" }, "\u63A8\u5B9A\u5024\uFF08\u4E57\u964D\u5BA2\u00D7\u8A2A\u554F\u7387\u00D7\u5916\u56FD\u4EBA\u6BD4\u7387\uFF09")
+      )
+    )
+  );
+}
+
+// ─────────────────────────────────────────────
+// 月次タブ
+// ─────────────────────────────────────────────
+
+function MonthlyTab({ apiKeys }) {
+  const [estatData, setEstatData] = useState(null);
+  const [estatLoading, setEstatLoading] = useState(false);
+  const [estatError, setEstatError] = useState(null);
+
+  useEffect(() => {
+    if (!apiKeys.estat) return;
+    setEstatLoading(true);
+    fetchEstatData(apiKeys.estat)
+      .then(data => { setEstatData(data); setEstatError(null); })
+      .catch(e => setEstatError(e.message))
+      .finally(() => setEstatLoading(false));
+  }, [apiKeys.estat]);
+
+  const maxNat = Math.max(...NATIONALITY_2025.map(n => n.val));
+
+  return React.createElement(React.Fragment, null,
+    // KPI
+    React.createElement("div", { className: "source-row" },
+      React.createElement("div", { className: "section-label", style: { marginBottom: 0 } },
+        "\u8A2A\u65E5\u5916\u5BA2\u6570 \u2014 \u6708\u6B21\u63A8\u8A08\u5024"
+      ),
+      React.createElement("span", { className: "update-badge badge-monthly" }, "\u25CF JNTO \u6BCE\u6708\u7B2C3\u9031\u767A\u8868")
+    ),
+
+    React.createElement("div", { className: "grid-4", style: { marginTop: 14 } },
+      React.createElement("div", { className: "kpi-card", style: { "--accent": "#2A8FD4" } },
+        React.createElement("div", { className: "kpi-label" }, "2025\u5E74 \u5E74\u9593\u5408\u8A08"),
+        React.createElement("div", { className: "kpi-value" }, "4,268", React.createElement("span", { className: "unit" }, "\u4E07\u4EBA")),
+        React.createElement("div", { className: "kpi-change up" }, "\u25B2 +15.8% \u524D\u5E74\u6BD4"),
+        React.createElement("div", { className: "kpi-source" }, "\u904E\u53BB\u6700\u9AD8\u30FB\u521D\u306E4,000\u4E07\u7A81\u7834")
+      ),
+      React.createElement("div", { className: "kpi-card", style: { "--accent": "#2A8FD4" } },
+        React.createElement("div", { className: "kpi-label" }, "2025\u5E74 \u6708\u5E73\u5747"),
+        React.createElement("div", { className: "kpi-value" }, "356", React.createElement("span", { className: "unit" }, "\u4E07\u4EBA")),
+        React.createElement("div", { className: "kpi-change up" }, "\u25B2 \u30D4\u30FC\u30AF4\u6708391\u4E07"),
+        React.createElement("div", { className: "kpi-source" }, "\u5358\u6708300\u4E07\u8D85\u304C\u5B9A\u5E38\u5316")
+      ),
+      React.createElement("div", { className: "kpi-card", style: { "--accent": "#F0B429" } },
+        React.createElement("div", { className: "kpi-label" }, "2025\u5E74 \u6D88\u8CBB\u7DCF\u984D"),
+        React.createElement("div", { className: "kpi-value" }, "9.5", React.createElement("span", { className: "unit" }, "\u5146\u5186")),
+        React.createElement("div", { className: "kpi-change up" }, "\u25B2 \u904E\u53BB\u6700\u9AD8\u66F4\u65B0"),
+        React.createElement("div", { className: "kpi-source" }, "\u89B3\u5149\u5E81\u30A4\u30F3\u30D0\u30A6\u30F3\u30C9\u6D88\u8CBB\u52D5\u5411")
+      ),
+      React.createElement("div", { className: "kpi-card", style: { "--accent": "#4CAF82" } },
+        React.createElement("div", { className: "kpi-label" }, "1\u4EBA\u3042\u305F\u308A\u65C5\u884C\u652F\u51FA"),
+        React.createElement("div", { className: "kpi-value" }, "22.9", React.createElement("span", { className: "unit" }, "\u4E07\u5186")),
+        React.createElement("div", { className: "kpi-change up" }, "\u25B2 +4.1% \u524D\u5E74\u6BD4"),
+        React.createElement("div", { className: "kpi-source" }, "2025\u5E74\u78BA\u5B9A\u5024")
+      )
+    ),
+
+    // チャート
+    React.createElement("div", { className: "grid-2-1" },
+      React.createElement("div", { className: "chart-card" },
+        React.createElement("div", { className: "chart-title" }, "\u6708\u5225\u8A2A\u65E5\u5916\u5BA2\u6570\u63A8\u79FB\uFF082025\u5E74\uFF09"),
+        React.createElement(ResponsiveContainer, { width: "100%", height: 180 },
+          React.createElement(BarChart, { data: JNTO_MONTHLY_2025, barSize: 18 },
+            React.createElement(CartesianGrid, { vertical: false, stroke: "rgba(255,255,255,0.04)" }),
+            React.createElement(XAxis, { dataKey: "month", tick: { fill: "#3D5A70", fontSize: 12, fontFamily: "'Space Mono',monospace" }, axisLine: false, tickLine: false }),
+            React.createElement(YAxis, { tick: { fill: "#3D5A70", fontSize: 11, fontFamily: "'Space Mono',monospace" }, axisLine: false, tickLine: false, domain: [200, 420] }),
+            React.createElement(Tooltip, { content: React.createElement(CustomTooltip, { unit: "\u4E07\u4EBA" }), cursor: { fill: "rgba(42,143,212,0.06)" } }),
+            React.createElement(Bar, { dataKey: "visitors", radius: [3, 3, 0, 0] },
+              JNTO_MONTHLY_2025.map((entry, index) =>
+                React.createElement(Cell, { key: index, fill: entry.visitors === 391 ? "#F0B429" : "#1A4D6E" })
+              )
+            )
+          )
+        ),
+        React.createElement("div", { style: { fontSize: 11, color: "#2A3D50", fontFamily: "'Space Mono',monospace", marginTop: 4 } },
+          "\u4E07\u4EBA / \u51FA\u5178\uFF1AJNTO\u6708\u5225\u63A8\u8A08\u5024"
+        )
+      ),
+      React.createElement("div", { className: "chart-card" },
+        React.createElement("div", { className: "chart-title" }, "\u56FD\u7C4D\u5225 2025\u5E74\u7D2F\u8A08\uFF08\u4E0A\u4F4D6\uFF09"),
+        NATIONALITY_2025.map((n, i) =>
+          React.createElement("div", { className: "bar-row", key: i },
+            React.createElement("div", { className: "bar-row-label" }, n.flag + " " + n.name),
+            React.createElement("div", { className: "bar-row-track" },
+              React.createElement("div", { className: "bar-row-fill", style: { width: (n.val / maxNat * 100) + "%", background: "rgba(42,143,212," + (1 - i * 0.12) + ")" } })
+            ),
+            React.createElement("div", { className: "bar-row-val" }, n.val + "\u4E07\u4EBA")
+          )
+        ),
+        React.createElement("div", { style: { fontSize: 11, color: "#2A3D50", fontFamily: "'Space Mono',monospace", marginTop: 8 } },
+          "\u51FA\u5178\uFF1AJNTO 2025\u5E74\u5E74\u9593\u7D2F\u8A08\u63A8\u8A08\u5024"
+        )
+      )
+    ),
+
+    // 宿泊統計
+    React.createElement("div", { className: "source-row", style: { marginTop: 4 } },
+      React.createElement("div", { className: "section-label", style: { marginBottom: 0 } },
+        "\u90FD\u9053\u5E9C\u770C\u5225 \u5916\u56FD\u4EBA\u5EF6\u3079\u5BBF\u6CCA\u8005\u6570"
+      ),
+      React.createElement("span", { className: "update-badge badge-monthly" }, "\u25CF \u89B3\u5149\u5E81 \u6BCE\u6708\u7B2C4\u9031\u767A\u8868")
+    ),
+
+    // e-Stat API ステータス
+    apiKeys.estat ?
+      React.createElement("div", { className: "api-status " + (estatError ? "api-err" : estatData ? "api-ok" : "api-none") },
+        estatLoading ? React.createElement("span", { className: "spinner" }) : null,
+        estatError ? "e-Stat API: " + estatError :
+        estatData ? "e-Stat API: \u63A5\u7D9A\u6E08" : "e-Stat API: \u53D6\u5F97\u4E2D..."
+      ) :
+      React.createElement("div", { className: "api-status api-none" },
+        "e-Stat API: \u672A\u8A2D\u5B9A\uFF08\u624B\u52D5\u30C7\u30FC\u30BF\u3092\u8868\u793A\uFF09"
+      ),
+
+    // テーブル（手動データをフォールバック）
+    React.createElement("div", { className: "chart-card", style: { marginTop: 14 } },
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 } },
+        React.createElement("div", { className: "chart-title", style: { marginBottom: 0 } }, "2024\u5E74\u78BA\u5B9A\u5024\u30E9\u30F3\u30AD\u30F3\u30B0\uFF08\u5916\u56FD\u4EBA\u5EF6\u3079\u5BBF\u6CCA\u8005\u6570\uFF09"),
+        React.createElement("div", { style: { fontSize: 11, color: "#2A3D50", fontFamily: "'Space Mono',monospace" } },
+          "\u5916\u56FD\u4EBA\u5168\u4F53\uFF1A1\u51046,360\u4E07\u4EBA\u6CCA / +38.9%"
+        )
+      ),
+      React.createElement("table", { className: "data-table" },
+        React.createElement("thead", null,
+          React.createElement("tr", null,
+            React.createElement("th", null, "#"),
+            React.createElement("th", null, "\u90FD\u9053\u5E9C\u770C"),
+            React.createElement("th", null, "\u5916\u56FD\u4EBA\u5EF6\u3079\u5BBF\u6CCA\u8005\u6570"),
+            React.createElement("th", null, "\u524D\u5E74\u6BD4"),
+            React.createElement("th", null, "\u30B7\u30A7\u30A2")
+          )
+        ),
+        React.createElement("tbody", null,
+          PREF_STAY_2024.map((r, i) =>
+            React.createElement("tr", { key: i },
+              React.createElement("td", { className: "rank" }, String(i + 1).padStart(2, "0")),
+              React.createElement("td", { style: { fontWeight: i < 3 ? 500 : 400 } }, r.pref),
+              React.createElement("td", { className: "mono" }, r.nights.toLocaleString() + " \u4E07\u4EBA\u6CCA"),
+              React.createElement("td", { className: "up" }, r.yoy),
+              React.createElement("td", null,
+                React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } },
+                  React.createElement("div", { style: { width: 60, height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2 } },
+                    React.createElement("div", { style: { width: (r.nights / 5720 * 100) + "%", height: "100%", background: "#1A4D6E", borderRadius: 2 } })
+                  ),
+                  React.createElement("span", { style: { fontFamily: "'Space Mono',monospace", fontSize: 11, color: "#3D5A70" } },
+                    Math.round(r.nights / 162 * 100) + "%"
+                  )
+                )
+              )
+            )
+          )
+        )
+      ),
+      React.createElement("div", { style: { marginTop: 12, padding: "10px 14px", background: "rgba(42,143,212,0.05)", borderRadius: 6, border: "1px solid rgba(42,143,212,0.1)" } },
+        React.createElement("span", { style: { fontSize: 12, color: "#5A8AAA" } }, "\u{1F4CD} \u6771\u4EAC\u30FB\u5927\u962A\u30FB\u4EAC\u90FD\u306E3\u90FD\u5E9C\u770C\u3067\u5916\u56FD\u4EBA\u5BBF\u6CCA\u5168\u4F53\u306E "),
+        React.createElement("span", { className: "highlight-num" }, "58.2%"),
+        React.createElement("span", { style: { fontSize: 12, color: "#5A8AAA" } }, " \u3092\u5360\u6709\u3002\u6771\u4EAC\u30FB\u4EAC\u90FD\u306F\u30A4\u30F3\u30D0\u30A6\u30F3\u30C9\u6BD4\u7387\u304C"),
+        React.createElement("span", { className: "highlight-num" }, " 50%\u8D85"),
+        React.createElement("span", { style: { fontSize: 12, color: "#5A8AAA" } }, "\uFF08\u5BBF\u6CCA\u80052\u4EBA\u306B1\u4EBA\u304C\u5916\u56FD\u4EBA\uFF09\u3002")
+      )
+    )
+  );
+}
+
+// ─────────────────────────────────────────────
+// 年次タブ
+// ─────────────────────────────────────────────
+
+function AnnualTab() {
+  return React.createElement(React.Fragment, null,
+    // 駅別利用者
+    React.createElement("div", { className: "source-row" },
+      React.createElement("div", { className: "section-label", style: { marginBottom: 0 } }, "\u99C5\u5225\u5229\u7528\u8005\u6570"),
+      React.createElement("span", { className: "update-badge badge-annual" }, "\u25CF JR\u6771\u65E5\u672C \u5E741\u56DE\u767A\u8868")
+    ),
+
+    React.createElement("div", { className: "grid-2", style: { marginTop: 14 } },
+      React.createElement("div", { className: "chart-card" },
+        React.createElement("div", { className: "chart-title" }, "JR\u6771\u65E5\u672C \u4E3B\u8981\u99C5 1\u65E5\u5E73\u5747\u4E57\u8ECA\u4EBA\u54E1\uFF082024\u5E74\u5EA6\uFF09"),
+        React.createElement("table", { className: "data-table" },
+          React.createElement("thead", null,
+            React.createElement("tr", null,
+              React.createElement("th", null, "#"),
+              React.createElement("th", null, "\u99C5\u540D"),
+              React.createElement("th", null, "1\u65E5\u4E57\u8ECA\u4EBA\u54E1\uFF08\u5343\u4EBA\uFF09"),
+              React.createElement("th", null, "\u524D\u5E74\u6BD4"),
+              React.createElement("th", null, "\u5099\u8003")
+            )
+          ),
+          React.createElement("tbody", null,
+            STATION_DATA.map((s, i) =>
+              React.createElement("tr", { key: i },
+                React.createElement("td", { className: "rank" }, String(i + 1).padStart(2, "0")),
+                React.createElement("td", { style: { fontWeight: i === 0 ? 500 : 400 } }, s.station),
+                React.createElement("td", { className: "mono" }, s.ridership.toLocaleString() + " \u5343\u4EBA"),
+                React.createElement("td", { className: "up" }, s.change),
+                React.createElement("td", { style: { fontSize: 11, color: "#3D5A70", fontFamily: "'Space Mono',monospace" } }, s.note)
+              )
+            )
+          )
+        ),
+        React.createElement("div", { style: { marginTop: 10, fontSize: 11, color: "#2A3D50", fontFamily: "'Space Mono',monospace" } },
+          "\u203B\u4E57\u8ECA\u4EBA\u54E1\u306E\u307F\uFF08\u964D\u8ECA\u542B\u307E\u305A\uFF09\u3002\u65B0\u5BBF\u306E\u5168\u793E\u5408\u8A08\u4E57\u964D\u306F\u7D04152\u4E07\u4EBA/\u65E5\u3002"
+        )
+      ),
+      React.createElement("div", { className: "chart-card" },
+        React.createElement("div", { className: "chart-title" }, "\u99C5\u5225 \u4E57\u964D\u5BA2\u6570\uFF08\u5168\u793E\u5408\u8A08\u30FB\u53C2\u8003\u5024\uFF09"),
+        STATION_ALL.map((s, i) =>
+          React.createElement("div", { className: "bar-row", key: i },
+            React.createElement("div", { className: "bar-row-label", style: { fontSize: 12 } }, s.station),
+            React.createElement("div", { className: "bar-row-track" },
+              React.createElement("div", { className: "bar-row-fill", style: { width: (s.val / 152 * 100) + "%", background: "rgba(240,180,41," + (0.7 - i * 0.1) + ")" } })
+            ),
+            React.createElement("div", { className: "bar-row-val" }, s.val + "\u4E07\u4EBA/\u65E5")
+          )
+        ),
+        React.createElement("div", { style: { fontSize: 11, color: "#2A3D50", fontFamily: "'Space Mono',monospace", marginTop: 8 } },
+          "\u51FA\u5178\uFF1A\u56FD\u571F\u4EA4\u901A\u7701 \u56FD\u571F\u6570\u5024\u60C5\u5831\uFF08\u4EE4\u548C5\u5E74\u5EA6\uFF09"
+        ),
+        React.createElement("div", { className: "divider" }),
+        React.createElement("div", { style: { fontSize: 12, color: "#5A7A96", lineHeight: 1.7 } },
+          React.createElement("span", { style: { color: "#F0B429", fontFamily: "'Space Mono',monospace" } }, "INSIGHT"),
+          " \u6771\u4EAC\u99C5\u306E\u524D\u5E74\u6BD4+7.6%\u306F\u30A4\u30F3\u30D0\u30A6\u30F3\u30C9\u30FB\u51FA\u793E\u56DE\u5E30\u306E\u8907\u5408\u52B9\u679C\u3002\u864E\u30CE\u9580\u30D2\u30EB\u30BA\uFF08+25.3%\uFF09\u306A\u3069\u518D\u958B\u767A\u30A8\u30EA\u30A2\u306E\u4F38\u3073\u304C\u7A81\u51FA\u3002"
+        )
+      )
+    ),
+
+    // 年次推移
+    React.createElement("div", { className: "source-row", style: { marginTop: 4 } },
+      React.createElement("div", { className: "section-label", style: { marginBottom: 0 } }, "\u8A2A\u65E5\u5916\u5BA2\u6570 \u5E74\u6B21\u63A8\u79FB\u30FB\u76EE\u6A19"),
+      React.createElement("span", { className: "update-badge badge-annual" }, "\u25CF JNTO \u5E74\u6B21\u78BA\u5B9A\u5024")
+    ),
+    React.createElement("div", { className: "grid-3", style: { marginTop: 14 } },
+      JNTO_ANNUAL.map((item, i) =>
+        React.createElement("div", { className: "kpi-card", key: i, style: { "--accent": ["#2A4A60", "#1A4D6E", "#2A8FD4"][i] } },
+          React.createElement("div", { className: "kpi-label" }, item.year + "\u5E74 \u5E74\u9593\u8A2A\u65E5\u5916\u5BA2\u6570"),
+          React.createElement("div", { className: "kpi-value", style: { fontSize: 26 } }, item.visitors.toLocaleString() + "\u4E07\u4EBA"),
+          React.createElement("div", { className: "kpi-change neutral" }, item.label)
+        )
+      )
+    ),
+    React.createElement("div", { className: "target-row" },
+      React.createElement("div", null,
+        React.createElement("div", { style: { fontSize: 11, fontFamily: "'Space Mono',monospace", color: "#5A6A30", marginBottom: 3 } },
+          "\u653F\u5E9C\u76EE\u6A19 \u2014 \u7B2C4\u6B21\u89B3\u5149\u7ACB\u56FD\u63A8\u9032\u57FA\u672C\u8A08\u753B"
+        ),
+        React.createElement("div", { className: "target-label" }, "2030\u5E74 \u8A2A\u65E5\u5916\u5BA2\u6570\u76EE\u6A19")
+      ),
+      React.createElement("div", { className: "target-val" }, "6,000\u4E07\u4EBA"),
+      React.createElement("div", { style: { fontSize: 12, color: "#5A7A30", fontFamily: "'Space Mono',monospace", textAlign: "right" } },
+        "\u73FE\u5728\u9054\u6210\u7387", React.createElement("br"),
+        React.createElement("span", { style: { color: "#F0B429", fontSize: 16 } }, "71%")
+      )
+    )
+  );
+}
+
+// ─────────────────────────────────────────────
+// 固定参照タブ
+// ─────────────────────────────────────────────
+
+function FixedTab() {
+  return React.createElement(React.Fragment, null,
+    // エリア訪問率
+    React.createElement("div", { className: "source-row" },
+      React.createElement("div", { className: "section-label", style: { marginBottom: 0 } }, "\u6771\u4EAC\u30A8\u30EA\u30A2\u5916\u56FD\u4EBA\u8A2A\u554F\u7387"),
+      React.createElement("span", { className: "update-badge badge-fixed" }, "\u25CF \u6771\u4EAC\u90FD \u4EE4\u548C6\u5E74\u8ABF\u67FB")
+    ),
+    React.createElement("div", { className: "chart-card", style: { marginTop: 14, marginBottom: 12 } },
+      React.createElement("div", { className: "chart-title" }, "\u8A2A\u65E5\u5916\u56FD\u4EBA \u6771\u4EAC\u30A8\u30EA\u30A2\u5225\u8A2A\u554F\u7387\uFF08NNEX\u5C55\u958B\u30A8\u30EA\u30A2\u53C2\u7167\uFF09"),
+      AREA_VISIT.map((a, i) =>
+        React.createElement("div", { key: i, style: { marginBottom: 16 } },
+          React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 6 } },
+            React.createElement("span", { style: { fontSize: 14, color: i < 2 ? "#EAF0F8" : "#7AAFD4" } }, a.area),
+            React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 20, color: i < 2 ? "#2A8FD4" : "#5A8AAA" } }, a.rate + "%")
+          ),
+          React.createElement("div", { style: { height: 8, background: "rgba(255,255,255,0.05)", borderRadius: 4 } },
+            React.createElement("div", { style: { width: a.rate + "%", height: "100%", borderRadius: 4, background: i < 2 ? "linear-gradient(90deg, #1A4D6E, #2A8FD4)" : "rgba(42,143,212,0.3)" } })
+          )
+        )
+      ),
+      React.createElement("div", { style: { padding: "10px 14px", background: "rgba(42,143,212,0.05)", borderRadius: 6, border: "1px solid rgba(42,143,212,0.1)", fontSize: 12, color: "#5A8AAA" } },
+        "\u6E0B\u8C37\u30A8\u30EA\u30A2\u306F\u8A2A\u554F\u7387",
+        React.createElement("span", { className: "highlight-num" }, " 62.6%"),
+        "\u3002\u6E0B\u8C37109 MAGNET\u5468\u8FBA\u306F1\u65E5\u5916\u56FD\u4EBA\u6765\u8A2A\u8005\u6570\u7D041,000\u4EBA\uFF08NNEX\u5B9F\u8A3C\u65BD\u8A2D\uFF09\u3002"
+      )
+    ),
+
+    // 消費構造
+    React.createElement("div", { className: "source-row", style: { marginTop: 4 } },
+      React.createElement("div", { className: "section-label", style: { marginBottom: 0 } }, "\u6D88\u8CBB\u69CB\u9020\u30FB\u6EDE\u5728\u30D1\u30BF\u30FC\u30F3"),
+      React.createElement("span", { className: "update-badge badge-fixed" }, "\u25CF \u89B3\u5149\u5E81 \u30A4\u30F3\u30D0\u30A6\u30F3\u30C9\u6D88\u8CBB\u52D5\u5411\u8ABF\u67FB")
+    ),
+    React.createElement("div", { className: "grid-2", style: { marginTop: 14 } },
+      React.createElement("div", { className: "chart-card" },
+        React.createElement("div", { className: "chart-title" }, "\u6D88\u8CBB\u984D \u8CBB\u76EE\u5225\u5185\u8A33\uFF082024\u5E74\u78BA\u5B9A\u5024\uFF09"),
+        SPENDING_2024.map((item, i) =>
+          React.createElement("div", { className: "bar-row", key: i },
+            React.createElement("div", { className: "bar-row-label", style: { fontSize: 13 } }, item.name),
+            React.createElement("div", { className: "bar-row-track" },
+              React.createElement("div", { className: "bar-row-fill", style: { width: (item.pct * 2.5) + "%", background: i === 4 ? "#F0B429" : "#1A4D6E" } })
+            ),
+            React.createElement("div", { style: { fontFamily: "'Space Mono',monospace", fontSize: 12, color: "#5A8AAA", width: 80 } },
+              item.pct + "% ",
+              React.createElement("span", { style: { color: "#2A3D50" } }, "/ " + item.val)
+            )
+          )
+        ),
+        React.createElement("div", { style: { marginTop: 10, fontSize: 11, color: "#2A3D50", fontFamily: "'Space Mono',monospace" } },
+          "\u5A2F\u697D\u8CBB\uFF08\u4F53\u9A13\u6D88\u8CBB\uFF09\u306F\u5168\u4F53\u306E10.9% \u2014 NNEX\u53CE\u76CA\u5316\u306E\u5BFE\u8C61\u9818\u57DF"
+        )
+      ),
+      React.createElement("div", { className: "chart-card" },
+        React.createElement("div", { className: "chart-title" }, "\u6EDE\u5728\u30FB\u6D88\u8CBB\u6307\u6A19"),
+        React.createElement("div", { className: "two-col-stat", style: { background: "rgba(255,255,255,0.02)", borderRadius: 6, border: "1px solid rgba(255,255,255,0.05)", marginBottom: 12 } },
+          React.createElement("div", { className: "col-stat" },
+            React.createElement("div", { className: "col-stat-label" }, "\u5E73\u5747\u6EDE\u5728\u65E5\u6570"),
+            React.createElement("div", { className: "col-stat-val" }, "10.5", React.createElement("span", { style: { fontSize: 14 } }, "\u65E5")),
+            React.createElement("div", { className: "col-stat-sub" }, "\u25B2 +1.2\u65E5 \u524D\u5E74\u6BD4")
+          ),
+          React.createElement("div", { className: "col-stat" },
+            React.createElement("div", { className: "col-stat-label" }, "1\u4EBA\u5F53\u305F\u308A\u6D88\u8CBB\uFF082024\uFF09"),
+            React.createElement("div", { className: "col-stat-val" }, "22.0", React.createElement("span", { style: { fontSize: 14 } }, "\u4E07\u5186")),
+            React.createElement("div", { className: "col-stat-sub" }, "\u25B2 +5.2% \u524D\u5E74\u6BD4")
+          )
+        ),
+        React.createElement("div", { className: "divider" }),
+        React.createElement("div", { className: "chart-title", style: { marginBottom: 12 } }, "\u4E3B\u8981\u6307\u6A19 \u53C2\u7167\u5143\u307E\u3068\u3081"),
+        [
+          { label: "\u8A2A\u65E5\u5916\u5BA2\u6570\uFF08\u6708\u6B21\uFF09", src: "JNTO", cycle: "\u6BCE\u6708\u7B2C3\u9031" },
+          { label: "\u90FD\u9053\u5E9C\u770C\u5225\u5BBF\u6CCA\uFF08\u6708\u6B21\uFF09", src: "\u89B3\u5149\u5E81", cycle: "\u6BCE\u6708\u7B2C4\u9031" },
+          { label: "\u6D88\u8CBB\u52D5\u5411\u8ABF\u67FB\uFF08\u56DB\u534A\u671F\uFF09", src: "\u89B3\u5149\u5E81", cycle: "\u56DB\u534A\u671F" },
+          { label: "\u99C5\u5225\u4E57\u8ECA\u4EBA\u54E1\uFF08\u5E74\u6B21\uFF09", src: "JR\u6771\u65E5\u672C", cycle: "\u5E741\u56DE" },
+          { label: "\u5916\u56FD\u4EBA\u884C\u52D5\u8ABF\u67FB\uFF08\u6771\u4EAC\uFF09", src: "\u6771\u4EAC\u90FD", cycle: "\u5E741-2\u56DE" },
+          { label: "\u9244\u9053\u904B\u884C\u30FB\u6DF7\u96D1\u60C5\u5831", src: "ODPT", cycle: "\u30EA\u30A2\u30EB\u30BF\u30A4\u30E0" },
+        ].map((item, i) =>
+          React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: "1px solid rgba(255,255,255,0.03)" } },
+            React.createElement("div", { style: { flex: 1, fontSize: 13, color: "#C8D6E5" } }, item.label),
+            React.createElement("div", { style: { fontFamily: "'Space Mono',monospace", fontSize: 11, color: "#2A8FD4" } }, item.src),
+            React.createElement("div", { style: { fontFamily: "'Space Mono',monospace", fontSize: 11, color: "#3D5A70", width: 70, textAlign: "right" } }, item.cycle)
+          )
+        )
+      )
+    ),
+
+    // 市場前提
+    React.createElement("div", { className: "chart-card" },
+      React.createElement("div", { className: "chart-title" }, "NNEX\u5E02\u5834\u524D\u63D0 \u2014 \u56FA\u5B9A\u53C2\u7167\u5024\u30B5\u30DE\u30EA\u30FC"),
+      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 } },
+        [
+          { label: "TAM \u89B3\u5149DX/\u30B9\u30DE\u30FC\u30C8\u30C4\u30FC\u30EA\u30BA\u30E0", val: "10\u5146\u5186\u8D85", sub: "\u63A8\u5B9A\u5E02\u5834\u898F\u6A21" },
+          { label: "SAM \u30A4\u30F3\u30D0\u30A6\u30F3\u30C9\u53D7\u5165\u65BD\u8A2D", val: "1.5\u5146\u5186", sub: "\u73FE\u5B9F\u7684\u72D9\u3044\u76EE" },
+          { label: "SOM 5\u5E74100\u62E0\u70B9ARR\u63DB\u7B97", val: "36\u5104\u5186", sub: "5\u5E74\u76EEARR\u30D9\u30FC\u30B9" },
+        ].map((item, i) =>
+          React.createElement("div", { key: i, style: { padding: "14px 16px", background: "rgba(255,255,255,0.02)", borderRadius: 6, border: "1px solid rgba(255,255,255,0.05)" } },
+            React.createElement("div", { style: { fontSize: 12, color: "#4A6A84", marginBottom: 8 } }, item.label),
+            React.createElement("div", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 24, color: "#F0B429" } }, item.val),
+            React.createElement("div", { style: { fontSize: 11, color: "#3D5A70", fontFamily: "'Space Mono',monospace", marginTop: 4 } }, item.sub)
+          )
+        )
+      )
+    )
+  );
+}
+
+// ─────────────────────────────────────────────
+// メインコンポーネント
+// ─────────────────────────────────────────────
+
+function NNEXDashboard() {
+  const [tab, setTab] = useState("realtime");
+  const [showSettings, setShowSettings] = useState(false);
+  const [apiKeys, setApiKeys] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("nnex-api-keys") || "{}");
+    } catch { return {}; }
+  });
+
+  const saveKeys = (keys) => {
+    setApiKeys(keys);
+    localStorage.setItem("nnex-api-keys", JSON.stringify(keys));
+  };
+
+  const now = new Date();
+  const dateStr = now.getFullYear() + "." + String(now.getMonth() + 1).padStart(2, "0") + "." + String(now.getDate()).padStart(2, "0");
+
+  return React.createElement(React.Fragment, null,
+    React.createElement("div", { className: "db-root" },
+      // Header
+      React.createElement("div", { className: "db-header" },
+        React.createElement("div", null,
+          React.createElement("div", { className: "db-eyebrow" }, "NNEX / \u4EBA\u6D41\u30C7\u30FC\u30BF\u30E2\u30CB\u30BF\u30FC"),
+          React.createElement("div", { className: "db-title" }, "\u30A4\u30F3\u30D0\u30A6\u30F3\u30C9\u4EBA\u6D41\u30C0\u30C3\u30B7\u30E5\u30DC\u30FC\u30C9"),
+          React.createElement("div", { className: "db-subtitle" }, "\u8A2A\u65E5\u5916\u56FD\u4EBA \u00D7 \u5BBF\u6CCA\u5730 \u00D7 \u4EA4\u901A \u00D7 \u6DF7\u96D1\u5EA6 \u2014 \u7D4C\u55B6\u5224\u65AD\u7528\u30C7\u30FC\u30BF\u96C6")
+        ),
+        React.createElement("div", { className: "db-timestamp" },
+          "\u6700\u7D42\u78BA\u8A8D ", React.createElement("span", null, dateStr), React.createElement("br"),
+          "\u51FA\u5178\uFF1AJNTO / \u89B3\u5149\u5E81 / JR\u6771\u65E5\u672C / ODPT", React.createElement("br"),
+          React.createElement("span", null, "NNEX")
+        )
+      ),
+
+      // Tabs
+      React.createElement("div", { className: "db-tabs" },
+        React.createElement("button", { className: "db-tab " + (tab === "realtime" ? "active" : ""), onClick: () => setTab("realtime") },
+          React.createElement("span", { className: "dot dot-realtime" }), "\u30EA\u30A2\u30EB\u30BF\u30A4\u30E0"
+        ),
+        React.createElement("button", { className: "db-tab " + (tab === "monthly" ? "active" : ""), onClick: () => setTab("monthly") },
+          React.createElement("span", { className: "dot dot-monthly" }), "\u6708\u6B21\u66F4\u65B0"
+        ),
+        React.createElement("button", { className: "db-tab " + (tab === "annual" ? "active" : ""), onClick: () => setTab("annual") },
+          React.createElement("span", { className: "dot dot-annual" }), "\u5E74\u6B21\u66F4\u65B0"
+        ),
+        React.createElement("button", { className: "db-tab " + (tab === "fixed" ? "active" : ""), onClick: () => setTab("fixed") },
+          React.createElement("span", { className: "dot dot-fixed" }), "\u56FA\u5B9A\u53C2\u7167\u5024"
+        ),
+        React.createElement("button", { className: "db-tab " + (tab === "poi" ? "active" : ""), onClick: () => setTab("poi") },
+          React.createElement("span", { className: "dot dot-poi" }), "POI\u30DE\u30C3\u30D7"
+        ),
+        React.createElement("button", { className: "settings-btn", onClick: () => setShowSettings(true) },
+          "\u2699 Settings"
+        )
+      ),
+
+      // Content
+      React.createElement("div", { className: "db-content" },
+        tab === "realtime" && React.createElement(RealtimeTab, { apiKeys }),
+        tab === "monthly" && React.createElement(MonthlyTab, { apiKeys }),
+        tab === "annual" && React.createElement(AnnualTab),
+        tab === "fixed" && React.createElement(FixedTab),
+        tab === "poi" && React.createElement(React.Fragment, null,
+          React.createElement("div", { className: "poi-map-header" },
+            React.createElement("div", null,
+              React.createElement("div", { className: "section-label", style: { marginBottom: 0 } },
+                "MAGNET by SHIBUYA109 \u5468\u8FBA POI"
+              )
+            ),
+            React.createElement("span", { className: "update-badge", style: { background: "rgba(216,27,96,0.12)", color: "#D81B60", border: "1px solid rgba(216,27,96,0.2)" } },
+              "\u25CF OSM + Foursquare + \u72EC\u81EA\u30C7\u30FC\u30BF"
+            )
+          ),
+          React.createElement("div", { className: "poi-map-container" },
+            React.createElement("iframe", {
+              src: "./poi/index.html",
+              title: "NNEX POI Map",
+              allow: "geolocation"
+            })
+          )
+        )
+      )
+    ),
+
+    // Settings modal
+    React.createElement(SettingsModal, {
+      show: showSettings,
+      onClose: () => setShowSettings(false),
+      keys: apiKeys,
+      onSave: saveKeys
+    })
+  );
+}
+
+// ─────────────────────────────────────────────
+// マウント
+// ─────────────────────────────────────────────
+ReactDOM.createRoot(document.getElementById("root")).render(
+  React.createElement(NNEXDashboard)
+);
+</script>
+</body>
+</html>

@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NNEX POI Prototype — MAGNET by SHIBUYA109</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    #map { width: 100%; height: 100vh; }
+
+    /* フィルターパネル */
+    .filter-panel {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+      max-width: 340px;
+      backdrop-filter: blur(8px);
+    }
+    .filter-panel h2 {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: #111;
+    }
+    .filter-panel .subtitle {
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    .source-badges {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .source-badge {
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .source-badge.osm { background: #e8f5e9; color: #2e7d32; }
+    .source-badge.fsq { background: #e3f2fd; color: #1565c0; }
+    .source-badge.custom { background: #fff3e0; color: #e65100; }
+    .filter-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .filter-btn {
+      padding: 6px 12px;
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      background: #fff;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .filter-btn:hover { border-color: #333; }
+    .filter-btn.active {
+      background: #111;
+      color: #fff;
+      border-color: #111;
+    }
+    .filter-btn .emoji { margin-right: 4px; }
+
+    /* データソースフィルター */
+    .source-filter {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #eee;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .source-filter label {
+      font-size: 11px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .source-filter input { margin: 0; }
+
+    /* 距離スライダー */
+    .distance-control {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #eee;
+    }
+    .distance-control label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #333;
+    }
+    .distance-control input[type="range"] {
+      width: 100%;
+      margin-top: 4px;
+    }
+    .poi-count {
+      margin-top: 10px;
+      font-size: 11px;
+      color: #888;
+    }
+
+    /* Foursquareトークン設定 */
+    .fsq-config {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #eee;
+    }
+    .fsq-config summary {
+      font-size: 11px;
+      color: #888;
+      cursor: pointer;
+    }
+    .fsq-config input {
+      width: 100%;
+      margin-top: 6px;
+      padding: 6px 8px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 11px;
+    }
+    .fsq-config button {
+      margin-top: 4px;
+      padding: 4px 12px;
+      border: none;
+      border-radius: 6px;
+      background: #1565c0;
+      color: #fff;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .fsq-status {
+      font-size: 10px;
+      margin-top: 4px;
+    }
+    .fsq-status.ok { color: #2e7d32; }
+    .fsq-status.none { color: #999; }
+
+    /* 凡例 */
+    .legend {
+      position: absolute;
+      bottom: 32px;
+      right: 12px;
+      z-index: 1000;
+      background: rgba(255,255,255,0.95);
+      border-radius: 10px;
+      padding: 12px 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      font-size: 11px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+    .legend-item:last-child { margin-bottom: 0; }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ポップアップ */
+    .poi-popup-name {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+    .poi-popup-name-en {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 8px;
+    }
+    .poi-popup-meta {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .poi-popup-source {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 9px;
+      font-weight: 600;
+    }
+    .poi-popup-source.osm { background: #e8f5e9; color: #2e7d32; }
+    .poi-popup-source.foursquare { background: #e3f2fd; color: #1565c0; }
+    .poi-popup-source.custom { background: #fff3e0; color: #e65100; }
+    .poi-popup-category {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: #f0f0f0;
+      font-size: 11px;
+      color: #555;
+    }
+    .poi-popup-distance {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+    .poi-popup-hours {
+      font-size: 12px;
+      color: #444;
+    }
+    .poi-popup-sponsored {
+      margin-top: 8px;
+      padding: 6px 10px;
+      background: #fff3e0;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #e65100;
+      font-weight: 600;
+    }
+    .poi-popup-rating {
+      font-size: 11px;
+      color: #fb8c00;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<!-- フィルターパネル -->
+<div class="filter-panel">
+  <h2>MAGNET by SHIBUYA109 周辺</h2>
+  <div class="subtitle">NNEX POI Prototype — OSM + Foursquare + 独自データ</div>
+  <div class="source-badges">
+    <span class="source-badge osm">OSM</span>
+    <span class="source-badge fsq" id="fsqBadge" style="opacity:0.4">Foursquare</span>
+    <span class="source-badge custom">独自POI</span>
+  </div>
+  <div class="filter-buttons" id="filterButtons"></div>
+  <div class="source-filter">
+    <span style="font-size:11px;font-weight:600">ソース:</span>
+    <label><input type="checkbox" id="srcOsm" checked> OSM</label>
+    <label><input type="checkbox" id="srcFsq" checked> FSQ</label>
+    <label><input type="checkbox" id="srcCustom" checked> 独自</label>
+  </div>
+  <div class="distance-control">
+    <label>表示範囲: <span id="distanceLabel">300m</span></label>
+    <input type="range" id="distanceSlider" min="50" max="500" step="50" value="300">
+  </div>
+  <div class="poi-count" id="poiCount"></div>
+
+  <!-- Foursquare API設定 -->
+  <details class="fsq-config">
+    <summary>Foursquare API設定</summary>
+    <input type="text" id="fsqApiKey" placeholder="Foursquare API Key を入力">
+    <button onclick="saveFsqKey()">保存して取得</button>
+    <div class="fsq-status none" id="fsqStatus">未設定 — OSM + 独自データのみで動作します</div>
+  </details>
+</div>
+
+<!-- 凡例 -->
+<div class="legend" id="legend"></div>
+
+<script>
+// ===== 設定 =====
+const MAGNET = {
+  lat: 35.6610,
+  lng: 139.6988,
+  name: 'MAGNET by SHIBUYA109',
+  address: '東京都渋谷区神南1丁目23-10'
+};
+
+// NNEX統一カテゴリ
+const CATEGORY_CONFIG = {
+  restaurant: { label: '飲食店', emoji: '🍽', color: '#e53935' },
+  cafe:       { label: 'カフェ', emoji: '☕', color: '#6d4c41' },
+  convenience_store: { label: 'コンビニ', emoji: '🏪', color: '#43a047' },
+  shopping:   { label: 'ショッピング', emoji: '🛍', color: '#8e24aa' },
+  entertainment: { label: 'エンタメ', emoji: '🎭', color: '#fb8c00' },
+  transport:  { label: '交通', emoji: '🚃', color: '#1e88e5' },
+  tourism:    { label: '観光', emoji: '📸', color: '#d81b60' },
+  service:    { label: 'サービス', emoji: '🏢', color: '#546e7a' },
+  other:      { label: 'その他', emoji: '📍', color: '#9e9e9e' }
+};
+
+// ===== ユーティリティ =====
+function calcDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function walkMinutes(meters) {
+  return Math.max(1, Math.round(meters / 80));
+}
+
+// ===== OSMカテゴリマッピング =====
+function mapOsmCategory(tags) {
+  if (tags.amenity) {
+    const a = tags.amenity;
+    if (['restaurant', 'food_court', 'fast_food', 'bar', 'pub', 'biergarten'].includes(a)) return 'restaurant';
+    if (a === 'cafe') return 'cafe';
+    if (['cinema', 'theatre', 'nightclub', 'karaoke_box', 'arts_centre'].includes(a)) return 'entertainment';
+    if (['bank', 'atm', 'pharmacy', 'post_office', 'police'].includes(a)) return 'service';
+  }
+  if (tags.shop) {
+    if (['convenience', 'supermarket'].includes(tags.shop)) return 'convenience_store';
+    return 'shopping';
+  }
+  if (tags.tourism) return 'tourism';
+  if (tags.railway || tags.highway === 'bus_stop') return 'transport';
+  return 'other';
+}
+
+// ===== Foursquareカテゴリマッピング =====
+function mapFsqCategory(categories) {
+  if (!categories || categories.length === 0) return 'other';
+  const id = categories[0].id;
+  // Foursquare Places API v3 カテゴリID（上位レベル）
+  // 13000: Dining and Drinking
+  if (id >= 13000 && id < 14000) {
+    // 13032-13039: Coffee Shops
+    if (id >= 13032 && id <= 13039) return 'cafe';
+    return 'restaurant';
+  }
+  // 17000: Retail
+  if (id >= 17000 && id < 18000) {
+    // 17069-17071: Convenience Store
+    if (id >= 17069 && id <= 17071) return 'convenience_store';
+    return 'shopping';
+  }
+  // 10000: Arts and Entertainment
+  if (id >= 10000 && id < 11000) return 'entertainment';
+  // 19000: Travel and Transportation
+  if (id >= 19000 && id < 20000) return 'transport';
+  // 16000: Landmarks and Outdoors
+  if (id >= 16000 && id < 17000) return 'tourism';
+  return 'service';
+}
+
+// ===== OSMデータ取得・変換 =====
+function osmToNnexPoi(element) {
+  const tags = element.tags || {};
+  if (!tags.name && !tags['name:en']) return null;
+
+  const dist = calcDistance(MAGNET.lat, MAGNET.lng, element.lat, element.lon);
+  const category = mapOsmCategory(tags);
+
+  return {
+    id: `osm_node_${element.id}`,
+    source: 'osm',
+    external_id: `node/${element.id}`,
+    name: {
+      ja: tags.name || tags['name:en'] || '',
+      en: tags['name:en'] || tags['name:ja-Latn'] || ''
+    },
+    location: { lat: element.lat, lng: element.lon },
+    category: {
+      primary: category,
+      source_category: tags.amenity || tags.shop || tags.tourism || ''
+    },
+    distance: {
+      meters: Math.round(dist),
+      walk_minutes: walkMinutes(dist)
+    },
+    business: {
+      hours: tags.opening_hours || null,
+      phone: tags.phone || tags['contact:phone'] || null,
+      website: tags.website || tags['contact:website'] || null
+    },
+    content: {
+      tags: [
+        tags.cuisine,
+        tags.wheelchair === 'yes' ? 'wheelchair' : null,
+        tags.internet_access === 'wlan' ? 'wifi' : null
+      ].filter(Boolean)
+    }
+  };
+}
+
+async function fetchOsmPois() {
+  const query = `[out:json][timeout:25];(node["amenity"](around:500,${MAGNET.lat},${MAGNET.lng});node["shop"](around:500,${MAGNET.lat},${MAGNET.lng});node["tourism"](around:500,${MAGNET.lat},${MAGNET.lng}););out body;`;
+  const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    return data.elements.map(osmToNnexPoi).filter(Boolean);
+  } catch (e) {
+    console.error('OSMデータ取得エラー:', e);
+    return [];
+  }
+}
+
+// ===== Foursquareデータ取得・変換 =====
+function fsqToNnexPoi(venue) {
+  if (!venue.geocodes?.main) return null;
+  const dist = venue.distance || calcDistance(MAGNET.lat, MAGNET.lng, venue.geocodes.main.latitude, venue.geocodes.main.longitude);
+  const category = mapFsqCategory(venue.categories);
+
+  return {
+    id: `fsq_${venue.fsq_id}`,
+    source: 'foursquare',
+    external_id: venue.fsq_id,
+    name: {
+      ja: venue.name,
+      en: venue.name // Foursquare v3はリクエスト言語に依存
+    },
+    location: {
+      lat: venue.geocodes.main.latitude,
+      lng: venue.geocodes.main.longitude
+    },
+    category: {
+      primary: category,
+      source_category: venue.categories?.[0]?.name || ''
+    },
+    distance: {
+      meters: Math.round(dist),
+      walk_minutes: walkMinutes(dist)
+    },
+    business: {
+      hours: venue.hours?.display || null,
+      phone: venue.tel || null,
+      website: venue.website || null
+    },
+    content: {
+      tags: (venue.categories || []).map(c => c.short_name || c.name)
+    },
+    _fsq_rating: venue.rating || null,
+    _fsq_popularity: venue.popularity || null
+  };
+}
+
+async function fetchFoursquarePois(apiKey) {
+  if (!apiKey) return [];
+
+  // Foursquare Places API v3
+  // fields パラメータで必要な情報を指定
+  const fields = 'fsq_id,name,geocodes,categories,distance,hours,tel,website,rating,popularity';
+  const url = `https://api.foursquare.com/v3/places/search?ll=${MAGNET.lat}%2C${MAGNET.lng}&radius=500&limit=50&sort=DISTANCE&fields=${fields}`;
+
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': apiKey,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (res.status === 401) {
+      throw new Error('認証エラー: APIキーが無効です');
+    }
+    if (res.status === 403) {
+      throw new Error('権限エラー: Places APIが有効か確認してください');
+    }
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`API error ${res.status}: ${body.substring(0, 100)}`);
+    }
+
+    const data = await res.json();
+    const results = data.results || [];
+    document.getElementById('fsqBadge').style.opacity = '1';
+    document.getElementById('fsqStatus').textContent = `${results.length}件取得済み`;
+    document.getElementById('fsqStatus').className = 'fsq-status ok';
+    return results.map(fsqToNnexPoi).filter(Boolean);
+  } catch (e) {
+    console.error('Foursquareデータ取得エラー:', e);
+    document.getElementById('fsqStatus').textContent = `エラー: ${e.message}`;
+    document.getElementById('fsqStatus').className = 'fsq-status';
+    document.getElementById('fsqBadge').style.opacity = '0.4';
+    return [];
+  }
+}
+
+// ===== 独自POI（スポンサー枠デモ） =====
+const CUSTOM_POIS = [
+  {
+    id: 'custom_shibuya_cafe_001',
+    source: 'custom',
+    name: { ja: 'ABOUT LIFE COFFEE BREWERS', en: 'ABOUT LIFE COFFEE BREWERS' },
+    location: { lat: 35.6601, lng: 139.6978 },
+    category: { primary: 'cafe', sub: 'specialty_coffee', source_category: '' },
+    distance: { meters: 120, walk_minutes: 2 },
+    business: { hours: '09:00-18:00', website: null },
+    content: {
+      description: {
+        ja: '渋谷で人気のスペシャルティコーヒースタンド。テイクアウト専門。',
+        en: 'Popular specialty coffee stand in Shibuya. Takeout only.'
+      },
+      tags: ['takeout', 'specialty_coffee']
+    },
+    promotion: {
+      is_sponsored: true,
+      priority: 80,
+      campaign: {
+        title: 'NNEXナビ利用者限定 50円引き',
+        valid_from: '2026-04-01',
+        valid_until: '2026-06-30',
+        coupon_code: 'NNEX2026'
+      }
+    },
+    facility_context: {
+      relation: 'partner',
+      recommendation: {
+        ja: 'MAGNET帰りのコーヒーブレイクに！徒歩2分',
+        en: 'Coffee break after MAGNET! 2 min walk'
+      }
+    }
+  },
+  {
+    id: 'custom_shibuya_ramen_001',
+    source: 'custom',
+    name: { ja: '渋谷ラーメン AFURI', en: 'AFURI Ramen Shibuya' },
+    location: { lat: 35.6618, lng: 139.6992 },
+    category: { primary: 'restaurant', sub: 'ramen', source_category: '' },
+    distance: { meters: 95, walk_minutes: 1 },
+    business: { hours: '11:00-23:00', website: null },
+    content: {
+      description: {
+        ja: '柚子塩ラーメンが人気。英語メニューあり。',
+        en: 'Famous for yuzu shio ramen. English menu available.'
+      },
+      tags: ['english_menu', 'ramen']
+    },
+    promotion: {
+      is_sponsored: true,
+      priority: 90,
+      campaign: {
+        title: 'NNEXナビ提示でトッピング1品無料',
+        valid_from: '2026-04-01',
+        valid_until: '2026-05-31',
+        coupon_code: 'NNEX-AFURI'
+      }
+    },
+    facility_context: {
+      relation: 'partner',
+      recommendation: {
+        ja: 'MAGNETから徒歩1分！ランチにおすすめ',
+        en: '1 min from MAGNET! Great for lunch'
+      }
+    }
+  }
+];
+
+// ===== 重複排除（OSMとFoursquareの同一POI統合） =====
+function deduplicatePois(osmPois, fsqPois, customPois) {
+  const merged = [...customPois]; // 独自POIは最優先
+  const used = new Set();
+
+  // Foursquareを優先（情報が豊富）、近距離の同名POIはマージ
+  for (const fsq of fsqPois) {
+    const duplicate = osmPois.find(osm =>
+      calcDistance(osm.location.lat, osm.location.lng, fsq.location.lat, fsq.location.lng) < 30 &&
+      (osm.name.ja === fsq.name.ja || osm.name.en === fsq.name.en ||
+       osm.name.ja.includes(fsq.name.ja) || fsq.name.ja.includes(osm.name.ja))
+    );
+    if (duplicate) {
+      // Foursquareデータで補完したマージ版を作成
+      const mergedPoi = {
+        ...fsq,
+        id: `merged_${fsq.external_id}`,
+        source: 'foursquare', // Foursquare優先で表示
+        name: {
+          ja: duplicate.name.ja || fsq.name.ja,
+          en: fsq.name.en || duplicate.name.en
+        },
+        business: {
+          hours: fsq.business.hours || duplicate.business.hours,
+          phone: fsq.business.phone || duplicate.business.phone,
+          website: fsq.business.website || duplicate.business.website
+        }
+      };
+      merged.push(mergedPoi);
+      used.add(duplicate.id);
+    } else {
+      merged.push(fsq);
+    }
+  }
+
+  // 未マージのOSM POIを追加
+  for (const osm of osmPois) {
+    if (!used.has(osm.id)) {
+      merged.push(osm);
+    }
+  }
+
+  return merged;
+}
+
+// ===== Leaflet地図 & 表示 =====
+let map;
+let poiMarkers = [];
+let radiusCircle;
+let allPois = [];
+let activeCategories = new Set(Object.keys(CATEGORY_CONFIG));
+let activeSources = new Set(['osm', 'foursquare', 'custom']);
+let maxDistance = 300;
+
+function createPoiIcon(poi) {
+  const config = CATEGORY_CONFIG[poi.category.primary] || CATEGORY_CONFIG.other;
+  const isSponsored = poi.promotion?.is_sponsored;
+  const size = isSponsored ? 28 : 20;
+  const border = isSponsored ? '3px solid #ff6d00' : '2px solid #fff';
+  const shadow = isSponsored ? '0 0 8px rgba(255,109,0,0.5)' : '0 1px 4px rgba(0,0,0,0.3)';
+
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width:${size}px;height:${size}px;
+      background:${config.color};
+      border:${border};
+      border-radius:50%;
+      box-shadow:${shadow};
+      display:flex;align-items:center;justify-content:center;
+      font-size:${isSponsored ? 14 : 11}px;
+      cursor:pointer;
+    ">${config.emoji}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2]
+  });
+}
+
+function createPopupHtml(poi) {
+  const config = CATEGORY_CONFIG[poi.category.primary] || CATEGORY_CONFIG.other;
+  const sourceLabel = { osm: 'OSM', foursquare: 'Foursquare', custom: '独自' }[poi.source] || poi.source;
+  const sourceClass = poi.source;
+
+  let html = `<div style="min-width:200px">`;
+  html += `<div class="poi-popup-name">${poi.name.ja}</div>`;
+  if (poi.name.en && poi.name.en !== poi.name.ja) {
+    html += `<div class="poi-popup-name-en">${poi.name.en}</div>`;
+  }
+  html += `<div class="poi-popup-meta">`;
+  html += `<span class="poi-popup-source ${sourceClass}">${sourceLabel}</span>`;
+  html += `<span class="poi-popup-category">${config.emoji} ${config.label}</span>`;
+  html += `</div>`;
+  html += `<div class="poi-popup-distance">📍 約${poi.distance.meters}m（徒歩${poi.distance.walk_minutes}分）</div>`;
+  if (poi.business?.hours) {
+    html += `<div class="poi-popup-hours">🕐 ${poi.business.hours}</div>`;
+  }
+  if (poi._fsq_rating) {
+    html += `<div class="poi-popup-rating">⭐ ${poi._fsq_rating.toFixed(1)} / 10</div>`;
+  }
+  if (poi.content?.tags?.length > 0) {
+    html += `<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap">`;
+    poi.content.tags.forEach(tag => {
+      html += `<span style="padding:1px 6px;background:#f5f5f5;border-radius:8px;font-size:10px;color:#666">${tag}</span>`;
+    });
+    html += `</div>`;
+  }
+  if (poi.facility_context?.recommendation?.ja) {
+    html += `<div class="poi-popup-sponsored">⭐ ${poi.facility_context.recommendation.ja}</div>`;
+  }
+  if (poi.promotion?.campaign) {
+    html += `<div class="poi-popup-sponsored">🎟 ${poi.promotion.campaign.title}<br>`;
+    html += `<span style="font-size:10px;font-weight:400">コード: ${poi.promotion.campaign.coupon_code} ｜ 〜${poi.promotion.campaign.valid_until}</span></div>`;
+  }
+  if (poi.business?.website) {
+    html += `<div style="margin-top:6px"><a href="${poi.business.website}" target="_blank" style="font-size:11px;color:#1565c0">🔗 Webサイト</a></div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+function updateDisplay() {
+  // 既存マーカーをクリア
+  poiMarkers.forEach(m => map.removeLayer(m));
+  poiMarkers = [];
+
+  const filtered = allPois.filter(p =>
+    activeCategories.has(p.category.primary) &&
+    activeSources.has(p.source) &&
+    p.distance.meters <= maxDistance
+  );
+
+  // スポンサーPOI優先ソート
+  filtered.sort((a, b) => {
+    const ap = a.promotion?.priority || 0;
+    const bp = b.promotion?.priority || 0;
+    return bp - ap || a.distance.meters - b.distance.meters;
+  });
+
+  filtered.forEach(poi => {
+    const marker = L.marker([poi.location.lat, poi.location.lng], {
+      icon: createPoiIcon(poi),
+      zIndexOffset: poi.promotion?.is_sponsored ? 1000 : 0
+    })
+    .bindPopup(createPopupHtml(poi), { maxWidth: 300 })
+    .addTo(map);
+    poiMarkers.push(marker);
+  });
+
+  // 距離圏の更新
+  if (radiusCircle) map.removeLayer(radiusCircle);
+  radiusCircle = L.circle([MAGNET.lat, MAGNET.lng], {
+    radius: maxDistance,
+    color: '#111',
+    weight: 1.5,
+    dashArray: '8, 8',
+    fillColor: '#111',
+    fillOpacity: 0.03
+  }).addTo(map);
+
+  // カウント表示
+  const osmCount = filtered.filter(p => p.source === 'osm').length;
+  const fsqCount = filtered.filter(p => p.source === 'foursquare').length;
+  const customCount = filtered.filter(p => p.source === 'custom').length;
+  document.getElementById('poiCount').textContent =
+    `${filtered.length}件表示中（OSM: ${osmCount} / FSQ: ${fsqCount} / 独自: ${customCount}）`;
+}
+
+function buildFilterUI() {
+  const container = document.getElementById('filterButtons');
+
+  // 全表示ボタン
+  const allBtn = document.createElement('button');
+  allBtn.className = 'filter-btn active';
+  allBtn.textContent = '全て';
+  allBtn.addEventListener('click', () => {
+    const allActive = activeCategories.size === Object.keys(CATEGORY_CONFIG).length;
+    activeCategories = allActive ? new Set() : new Set(Object.keys(CATEGORY_CONFIG));
+    updateFilterButtonStyles();
+    updateDisplay();
+  });
+  container.appendChild(allBtn);
+
+  for (const [key, config] of Object.entries(CATEGORY_CONFIG)) {
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn active';
+    btn.dataset.category = key;
+    btn.innerHTML = `<span class="emoji">${config.emoji}</span>${config.label}`;
+    btn.addEventListener('click', () => {
+      activeCategories.has(key) ? activeCategories.delete(key) : activeCategories.add(key);
+      updateFilterButtonStyles();
+      updateDisplay();
+    });
+    container.appendChild(btn);
+  }
+
+  // ソースフィルター
+  ['srcOsm', 'srcFsq', 'srcCustom'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => {
+      activeSources = new Set();
+      if (document.getElementById('srcOsm').checked) activeSources.add('osm');
+      if (document.getElementById('srcFsq').checked) activeSources.add('foursquare');
+      if (document.getElementById('srcCustom').checked) activeSources.add('custom');
+      updateDisplay();
+    });
+  });
+
+  // 距離スライダー
+  document.getElementById('distanceSlider').addEventListener('input', (e) => {
+    maxDistance = parseInt(e.target.value);
+    document.getElementById('distanceLabel').textContent = `${maxDistance}m`;
+    updateDisplay();
+  });
+}
+
+function updateFilterButtonStyles() {
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    if (btn.dataset.category) {
+      btn.classList.toggle('active', activeCategories.has(btn.dataset.category));
+    } else {
+      btn.classList.toggle('active', activeCategories.size === Object.keys(CATEGORY_CONFIG).length);
+    }
+  });
+}
+
+function buildLegend() {
+  const container = document.getElementById('legend');
+  for (const [, config] of Object.entries(CATEGORY_CONFIG)) {
+    if (config.label === 'その他') continue;
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.innerHTML = `<div class="legend-dot" style="background:${config.color}"></div>${config.emoji} ${config.label}`;
+    container.appendChild(item);
+  }
+  const sponsored = document.createElement('div');
+  sponsored.className = 'legend-item';
+  sponsored.style.cssText = 'margin-top:6px;padding-top:6px;border-top:1px solid #eee';
+  sponsored.innerHTML = `<div class="legend-dot" style="background:#ff6d00;border:2px solid #ff6d00;width:12px;height:12px"></div>⭐ スポンサー`;
+  container.appendChild(sponsored);
+}
+
+// ===== Foursquare APIキー管理 =====
+function saveFsqKey() {
+  const key = document.getElementById('fsqApiKey').value.trim();
+  if (key) {
+    localStorage.setItem('fsq_api_key', key);
+    loadFoursquareData(key);
+  }
+}
+
+async function loadFoursquareData(apiKey) {
+  document.getElementById('fsqStatus').textContent = '取得中...';
+  document.getElementById('fsqStatus').className = 'fsq-status';
+  const fsqPois = await fetchFoursquarePois(apiKey);
+  if (fsqPois.length > 0) {
+    // 既存のOSM POIと統合
+    const osmPois = allPois.filter(p => p.source === 'osm');
+    const customPois = allPois.filter(p => p.source === 'custom');
+    allPois = deduplicatePois(osmPois, fsqPois, customPois);
+    updateDisplay();
+  }
+}
+
+// ===== 初期化 =====
+async function init() {
+  // Leaflet地図 — OSMタイル（トークン不要）
+  map = L.map('map').setView([MAGNET.lat, MAGNET.lng], 16);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19
+  }).addTo(map);
+
+  // MAGNET マーカー
+  const magnetIcon = L.divIcon({
+    className: '',
+    html: `<div style="
+      width:44px;height:44px;
+      background:#111;border:3px solid #fff;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-size:20px;box-shadow:0 2px 8px rgba(0,0,0,0.3);
+      cursor:pointer;
+    ">🏢</div>`,
+    iconSize: [44, 44],
+    iconAnchor: [22, 22]
+  });
+  L.marker([MAGNET.lat, MAGNET.lng], { icon: magnetIcon, zIndexOffset: 2000 })
+    .bindPopup(`<div class="poi-popup-name">${MAGNET.name}</div><div style="font-size:12px;color:#666;margin-top:4px">${MAGNET.address}</div>`)
+    .addTo(map);
+
+  // UI構築
+  buildFilterUI();
+  buildLegend();
+
+  // OSMデータ取得
+  const osmPois = await fetchOsmPois();
+  allPois = [...CUSTOM_POIS, ...osmPois];
+
+  // Foursquare APIキーがあれば取得
+  const savedFsqKey = localStorage.getItem('fsq_api_key');
+  if (savedFsqKey) {
+    document.getElementById('fsqApiKey').value = savedFsqKey;
+    const fsqPois = await fetchFoursquarePois(savedFsqKey);
+    if (fsqPois.length > 0) {
+      allPois = deduplicatePois(osmPois, fsqPois, CUSTOM_POIS);
+    }
+  }
+
+  updateDisplay();
+}
+
+init();
+</script>
+</body>
+</html>
