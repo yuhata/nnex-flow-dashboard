@@ -97,6 +97,136 @@ body { background: #080C10; font-size: 18px; }
 .dot-annual { background: #F0B429; }
 .dot-fixed { background: #4CAF82; }
 .dot-poi { background: #D81B60; }
+.dot-sales { background: #9C27B0; }
+
+/* Simulator */
+.sim-container {
+  background: #0E1520;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 24px;
+}
+.sim-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.sim-label {
+  font-size: 13px;
+  color: #7AAFD4;
+  width: 180px;
+  flex-shrink: 0;
+}
+.sim-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  outline: none;
+}
+.sim-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #2A8FD4;
+  cursor: pointer;
+  border: 2px solid #0E1520;
+}
+.sim-val {
+  font-family: 'Space Mono', monospace;
+  font-size: 14px;
+  color: #EAF0F8;
+  width: 100px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.sim-result-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.sim-result-card {
+  padding: 16px;
+  background: rgba(156,39,176,0.06);
+  border: 1px solid rgba(156,39,176,0.15);
+  border-radius: 8px;
+  text-align: center;
+}
+.sim-result-label { font-size: 11px; color: #8A9AAA; margin-bottom: 8px; }
+.sim-result-val {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 26px;
+  color: #CE93D8;
+}
+.sim-result-sub { font-family: 'Space Mono', monospace; font-size: 10px; color: #5A7A96; margin-top: 4px; }
+
+/* Pain point bar */
+.pain-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.pain-label {
+  font-size: 12px;
+  color: #C8D6E5;
+  width: 220px;
+  flex-shrink: 0;
+}
+.pain-track {
+  flex: 1;
+  height: 10px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.pain-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.6s ease;
+}
+.pain-pct {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: #EAF0F8;
+  width: 50px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Facility compare card */
+.facility-card {
+  background: #0E1520;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+}
+.facility-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #EAF0F8;
+  margin-bottom: 10px;
+}
+.facility-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  font-size: 12px;
+}
+.facility-stat-label { color: #5A7A96; }
+.facility-stat-val { font-family: 'Space Mono', monospace; color: #EAF0F8; }
 
 /* POI Map tab */
 .poi-map-container {
@@ -1236,11 +1366,294 @@ function FixedTab() {
 }
 
 // ─────────────────────────────────────────────
+// 営業インサイトタブ
+// ─────────────────────────────────────────────
+
+// 渋谷エリア施設データ（公開情報ベース）
+const FACILITY_DATA = [
+  {
+    name: "MAGNET by SHIBUYA109",
+    visitors: "412万人/年",
+    foreignPct: "展望台の約90%が外国人",
+    dailyForeign: "~500-600人/日（展望台）",
+    hasNavi: false,
+    note: "NNEX実証施設。2026年3月展望台リニューアル",
+  },
+  {
+    name: "渋谷ヒカリエ",
+    visitors: "2,000万人/年",
+    foreignPct: "推定15-20%",
+    dailyForeign: "推定8,000-11,000人/日",
+    hasNavi: false,
+    note: "渋谷駅直結。文化施設+商業の複合ビル",
+  },
+  {
+    name: "渋谷スクランブルスクエア",
+    visitors: "推定2,400万人/年",
+    foreignPct: "SHIBUYA SKY: 高外国人比率",
+    dailyForeign: "推定10,000人/日以上",
+    hasNavi: false,
+    note: "開業3ヶ月で600万人。SHIBUYA SKYが人気",
+  },
+  {
+    name: "渋谷PARCO",
+    visitors: "推定1,000万人/年",
+    foreignPct: "推定10-15%",
+    dailyForeign: "推定3,000-4,000人/日",
+    hasNavi: false,
+    note: "Nintendo TOKYO等コンテンツ系テナントが外国人集客",
+  },
+  {
+    name: "表参道ヒルズ",
+    visitors: "推定800万人/年",
+    foreignPct: "推定20-25%",
+    dailyForeign: "推定4,000-5,500人/日",
+    hasNavi: false,
+    note: "ハイブランド集積。欧米系インバウンド比率高",
+  },
+  {
+    name: "東京ミッドタウン日比谷",
+    visitors: "推定1,500万人/年",
+    foreignPct: "推定10-15%",
+    dailyForeign: "推定4,000-6,000人/日",
+    hasNavi: false,
+    note: "オフィス+商業複合。銀座隣接でインバウンド動線上",
+  },
+];
+
+// 訪日外国人の困りごと（観光庁 令和6年度調査）
+const PAIN_POINTS = [
+  { item: "ごみ箱の少なさ", pct: 21.9, nnexRelevant: false },
+  { item: "施設スタッフとのコミュニケーション", pct: 15.2, nnexRelevant: true },
+  { item: "観光地・地域の混雑", pct: 13.1, nnexRelevant: true },
+  { item: "公共交通の利用（乗り場・経路）", pct: 12.3, nnexRelevant: true },
+  { item: "入国手続きの待ち時間", pct: 8.6, nnexRelevant: false },
+  { item: "多言語表示の不足", pct: 7.8, nnexRelevant: true },
+  { item: "無料Wi-Fiの利用", pct: 5.4, nnexRelevant: false },
+];
+
+function SalesTab() {
+  const [simVisitors, setSimVisitors] = useState(2000);  // 1日来館者数（万人/年÷365）
+  const [simForeignPct, setSimForeignPct] = useState(20); // 外国人比率%
+  const [simNaviRate, setSimNaviRate] = useState(15);      // ナビ利用率%
+  const [simAdPrice, setSimAdPrice] = useState(30);        // POI広告単価（円/表示）
+  const [simFacilityFee, setSimFacilityFee] = useState(50); // 施設月額（万円）
+
+  // 計算
+  const dailyForeign = Math.round(simVisitors * simForeignPct / 100);
+  const dailyNaviUsers = Math.round(dailyForeign * simNaviRate / 100);
+  const monthlyNaviUsers = dailyNaviUsers * 30;
+  const monthlyAdRevenue = Math.round(monthlyNaviUsers * simAdPrice / 10000); // 万円
+  const monthlyTotal = monthlyAdRevenue + simFacilityFee;
+  const annualARR = Math.round(monthlyTotal * 12);
+
+  // NNEX解決可能な困りごとの合計
+  const nnexSolvablePct = PAIN_POINTS.filter(p => p.nnexRelevant).reduce((s, p) => s + p.pct, 0);
+
+  return React.createElement(React.Fragment, null,
+
+    // === セクション1: なぜNNEXか ===
+    React.createElement("div", { className: "source-row" },
+      React.createElement("div", { className: "section-label", style: { marginBottom: 0 } },
+        "\u8A2A\u65E5\u5916\u56FD\u4EBA\u304C\u65C5\u884C\u4E2D\u306B\u56F0\u3063\u305F\u3053\u3068 \u2014 NNEX\u304C\u89E3\u6C7A\u3067\u304D\u308B\u9818\u57DF"
+      ),
+      React.createElement("span", { className: "update-badge", style: { background: "rgba(156,39,176,0.12)", color: "#CE93D8", border: "1px solid rgba(156,39,176,0.2)" } },
+        "\u25CF \u89B3\u5149\u5E81 \u4EE4\u548C6\u5E74\u5EA6\u8ABF\u67FB"
+      )
+    ),
+
+    React.createElement("div", { className: "grid-2", style: { marginTop: 14 } },
+      // 困りごとチャート
+      React.createElement("div", { className: "chart-card" },
+        React.createElement("div", { className: "chart-title" }, "\u8A2A\u65E5\u5916\u56FD\u4EBA\u300C\u65C5\u884C\u4E2D\u306B\u56F0\u3063\u305F\u3053\u3068\u300D\u30E9\u30F3\u30AD\u30F3\u30B0"),
+        PAIN_POINTS.map(function(p, i) {
+          var color = p.nnexRelevant ? "#9C27B0" : "#2A3D50";
+          return React.createElement("div", { className: "pain-bar", key: i },
+            React.createElement("div", { className: "pain-label", style: { color: p.nnexRelevant ? "#CE93D8" : "#7A8A9A" } },
+              (p.nnexRelevant ? "\u2605 " : "") + p.item
+            ),
+            React.createElement("div", { className: "pain-track" },
+              React.createElement("div", { className: "pain-fill", style: { width: (p.pct / 25 * 100) + "%", background: color } })
+            ),
+            React.createElement("div", { className: "pain-pct", style: { color: p.nnexRelevant ? "#CE93D8" : "#5A7A96" } }, p.pct + "%")
+          );
+        }),
+        React.createElement("div", { style: { marginTop: 14, fontSize: 11, color: "#5A8AAA" } },
+          "\u203B \u300C\u56F0\u3063\u305F\u3053\u3068\u306F\u306A\u304B\u3063\u305F\u300D51.1%\uFF08\u524D\u5E74\u6BD429.7%\u304B\u3089\u5927\u5E45\u6539\u5584\uFF09"
+        )
+      ),
+
+      // NNEXの解決領域
+      React.createElement("div", { className: "chart-card" },
+        React.createElement("div", { className: "chart-title" }, "NNEX\u304C\u89E3\u6C7A\u3067\u304D\u308B\u8AB2\u984C\u9818\u57DF"),
+        React.createElement("div", { style: { padding: "20px 0", textAlign: "center" } },
+          React.createElement("div", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 800, fontSize: 52, color: "#CE93D8" } },
+            nnexSolvablePct.toFixed(1) + "%"
+          ),
+          React.createElement("div", { style: { fontSize: 13, color: "#8A9AAA", marginTop: 6 } },
+            "\u56F0\u308A\u3054\u3068\u306E\u3046\u3061NNEX\u304C\u89E3\u6C7A\u53EF\u80FD\u306A\u5272\u5408"
+          )
+        ),
+        React.createElement("div", { className: "divider" }),
+        [
+          { icon: "\u{1F4AC}", label: "\u30B3\u30DF\u30E5\u30CB\u30B1\u30FC\u30B7\u30E7\u30F3", desc: "WebAR\u4E0A\u306E\u591A\u8A00\u8A9E\u30CA\u30D3\u3067\u30B9\u30BF\u30C3\u30D5\u4F9D\u5B58\u3092\u89E3\u6D88", pct: "15.2%" },
+          { icon: "\u{1F4CD}", label: "\u9928\u5185\u7D4C\u8DEF\u6848\u5185", desc: "\u5E83\u3044\u65BD\u8A2D\u5185\u3067\u306E\u8FF7\u5B50\u30FB\u6DF7\u96D1\u56DE\u907F\u3092\u30CA\u30D3\u30B2\u30FC\u30C8", pct: "13.1%" },
+          { icon: "\u{1F687}", label: "\u4EA4\u901A\u63A5\u7D9A", desc: "\u65BD\u8A2D\u304B\u3089\u99C5\u30FB\u30D0\u30B9\u505C\u3078\u306E\u30E9\u30B9\u30C8\u30DE\u30A4\u30EB\u30CA\u30D3", pct: "12.3%" },
+          { icon: "\u{1F30F}", label: "\u591A\u8A00\u8A9E\u8868\u793A", desc: "AR\u30AA\u30FC\u30D0\u30FC\u30EC\u30A4\u3067\u30EA\u30A2\u30EB\u30BF\u30A4\u30E0\u7FFB\u8A33", pct: "7.8%" },
+        ].map(function(s, i) {
+          return React.createElement("div", { key: i, style: { display: "flex", gap: 12, padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.03)" } },
+            React.createElement("div", { style: { fontSize: 22 } }, s.icon),
+            React.createElement("div", { style: { flex: 1 } },
+              React.createElement("div", { style: { fontSize: 13, color: "#EAF0F8", fontWeight: 500 } }, s.label),
+              React.createElement("div", { style: { fontSize: 11, color: "#5A7A96", marginTop: 2 } }, s.desc)
+            ),
+            React.createElement("div", { style: { fontFamily: "'Space Mono',monospace", fontSize: 12, color: "#CE93D8", alignSelf: "center" } }, s.pct)
+          );
+        })
+      )
+    ),
+
+    // === セクション2: 施設比較 ===
+    React.createElement("div", { className: "source-row", style: { marginTop: 8 } },
+      React.createElement("div", { className: "section-label", style: { marginBottom: 0 } },
+        "\u6E0B\u8C37\u30A8\u30EA\u30A2 \u4E3B\u8981\u65BD\u8A2D\u6BD4\u8F03 \u2014 \u5C0E\u5165\u30DD\u30C6\u30F3\u30B7\u30E3\u30EB"
+      ),
+      React.createElement("span", { className: "update-badge badge-annual" }, "\u25CF \u516C\u958B\u60C5\u5831 + \u63A8\u5B9A\u5024")
+    ),
+
+    React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginTop: 14, marginBottom: 20 } },
+      FACILITY_DATA.map(function(f, i) {
+        return React.createElement("div", { className: "facility-card", key: i, style: { "--accent": i === 0 ? "#9C27B0" : "#2A8FD4" } },
+          i === 0 && React.createElement("div", { style: { position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, transparent, #9C27B0, transparent)", opacity: 0.8 } }),
+          React.createElement("div", { className: "facility-name" },
+            (i === 0 ? "\u{1F4CD} " : "") + f.name
+          ),
+          React.createElement("div", { className: "facility-stat" },
+            React.createElement("span", { className: "facility-stat-label" }, "\u5E74\u9593\u6765\u9928\u8005"),
+            React.createElement("span", { className: "facility-stat-val" }, f.visitors)
+          ),
+          React.createElement("div", { className: "facility-stat" },
+            React.createElement("span", { className: "facility-stat-label" }, "\u5916\u56FD\u4EBA\u6BD4\u7387"),
+            React.createElement("span", { className: "facility-stat-val" }, f.foreignPct)
+          ),
+          React.createElement("div", { className: "facility-stat" },
+            React.createElement("span", { className: "facility-stat-label" }, "\u63A8\u5B9A\u5916\u56FD\u4EBA/\u65E5"),
+            React.createElement("span", { className: "facility-stat-val" }, f.dailyForeign)
+          ),
+          React.createElement("div", { className: "facility-stat", style: { borderBottom: "none" } },
+            React.createElement("span", { className: "facility-stat-label" }, "\u591A\u8A00\u8A9E\u30CA\u30D3"),
+            React.createElement("span", { className: "facility-stat-val", style: { color: f.hasNavi ? "#4CAF82" : "#E05555" } },
+              f.hasNavi ? "\u5C0E\u5165\u6E08" : "\u672A\u5C0E\u5165"
+            )
+          ),
+          React.createElement("div", { style: { marginTop: 8, fontSize: 10, color: "#3D5A70", fontFamily: "'Space Mono',monospace" } }, f.note)
+        );
+      })
+    ),
+
+    React.createElement("div", { style: { padding: "12px 16px", background: "rgba(156,39,176,0.06)", border: "1px solid rgba(156,39,176,0.15)", borderRadius: 6, marginBottom: 20, fontSize: 12, color: "#CE93D8" } },
+      "\u{1F4A1} \u6E0B\u8C37\u30A8\u30EA\u30A2\u306E\u4E3B\u8981\u55B6\u696D\u65BD\u8A2D\u306F\u3044\u305A\u308C\u3082\u591A\u8A00\u8A9E\u30A4\u30F3\u30C9\u30A2\u30CA\u30D3\u30B2\u30FC\u30B7\u30E7\u30F3\u672A\u5C0E\u5165\u3002\u5916\u56FD\u4EBA\u6765\u9928\u8005\u5408\u8A08\u63A8\u5B9A ",
+      React.createElement("span", { style: { fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 16 } }, "30,000\u4EBA\u8D85/\u65E5"),
+      " \u2014 \u5927\u304D\u306A\u7A7A\u767D\u5E02\u5834\u3002"
+    ),
+
+    // === セクション3: 導入シミュレーター ===
+    React.createElement("div", { className: "source-row" },
+      React.createElement("div", { className: "section-label", style: { marginBottom: 0 } },
+        "\u65BD\u8A2D\u5C0E\u5165\u30B7\u30DF\u30E5\u30EC\u30FC\u30BF\u30FC \u2014 \u53CE\u76CA\u8A66\u7B97"
+      ),
+      React.createElement("span", { className: "update-badge", style: { background: "rgba(156,39,176,0.12)", color: "#CE93D8", border: "1px solid rgba(156,39,176,0.2)" } },
+        "\u25CF \u30A4\u30F3\u30BF\u30E9\u30AF\u30C6\u30A3\u30D6"
+      )
+    ),
+
+    React.createElement("div", { className: "sim-container", style: { marginTop: 14 } },
+      // スライダー群
+      React.createElement("div", { className: "sim-row" },
+        React.createElement("div", { className: "sim-label" }, "\u{1F3EC} 1\u65E5\u6765\u9928\u8005\u6570"),
+        React.createElement("input", { type: "range", className: "sim-slider", min: 500, max: 70000, step: 500, value: simVisitors,
+          onChange: function(e) { setSimVisitors(Number(e.target.value)); }
+        }),
+        React.createElement("div", { className: "sim-val" }, simVisitors.toLocaleString() + "\u4EBA")
+      ),
+      React.createElement("div", { className: "sim-row" },
+        React.createElement("div", { className: "sim-label" }, "\u{1F30F} \u5916\u56FD\u4EBA\u6BD4\u7387"),
+        React.createElement("input", { type: "range", className: "sim-slider", min: 1, max: 90, step: 1, value: simForeignPct,
+          onChange: function(e) { setSimForeignPct(Number(e.target.value)); }
+        }),
+        React.createElement("div", { className: "sim-val" }, simForeignPct + "%")
+      ),
+      React.createElement("div", { className: "sim-row" },
+        React.createElement("div", { className: "sim-label" }, "\u{1F4F1} \u30CA\u30D3\u5229\u7528\u7387"),
+        React.createElement("input", { type: "range", className: "sim-slider", min: 1, max: 50, step: 1, value: simNaviRate,
+          onChange: function(e) { setSimNaviRate(Number(e.target.value)); }
+        }),
+        React.createElement("div", { className: "sim-val" }, simNaviRate + "%")
+      ),
+      React.createElement("div", { className: "sim-row" },
+        React.createElement("div", { className: "sim-label" }, "\u{1F4B0} POI\u5E83\u544A\u5358\u4FA1"),
+        React.createElement("input", { type: "range", className: "sim-slider", min: 5, max: 100, step: 5, value: simAdPrice,
+          onChange: function(e) { setSimAdPrice(Number(e.target.value)); }
+        }),
+        React.createElement("div", { className: "sim-val" }, simAdPrice + "\u5186/\u8868\u793A")
+      ),
+      React.createElement("div", { className: "sim-row" },
+        React.createElement("div", { className: "sim-label" }, "\u{1F3E2} \u65BD\u8A2D\u6708\u984D\u57FA\u672C\u6599"),
+        React.createElement("input", { type: "range", className: "sim-slider", min: 10, max: 200, step: 10, value: simFacilityFee,
+          onChange: function(e) { setSimFacilityFee(Number(e.target.value)); }
+        }),
+        React.createElement("div", { className: "sim-val" }, simFacilityFee + "\u4E07\u5186/\u6708")
+      ),
+
+      // 結果
+      React.createElement("div", { className: "sim-result-grid" },
+        React.createElement("div", { className: "sim-result-card" },
+          React.createElement("div", { className: "sim-result-label" }, "\u6708\u9593\u30CA\u30D3\u5229\u7528\u8005"),
+          React.createElement("div", { className: "sim-result-val" }, monthlyNaviUsers.toLocaleString()),
+          React.createElement("div", { className: "sim-result-sub" }, dailyForeign.toLocaleString() + "\u4EBA/\u65E5 \u00D7 " + simNaviRate + "%")
+        ),
+        React.createElement("div", { className: "sim-result-card" },
+          React.createElement("div", { className: "sim-result-label" }, "\u6708\u9593\u53CE\u76CA\uFF08\u65BD\u8A2D\u6599+\u5E83\u544A\uFF09"),
+          React.createElement("div", { className: "sim-result-val" }, monthlyTotal.toLocaleString() + React.createElement("span", { style: { fontSize: 14, color: "#8A9AAA" } }, "\u4E07\u5186")),
+          React.createElement("div", { className: "sim-result-sub" }, "\u65BD\u8A2D" + simFacilityFee + "\u4E07 + \u5E83\u544A" + monthlyAdRevenue + "\u4E07")
+        ),
+        React.createElement("div", { className: "sim-result-card", style: { background: "rgba(156,39,176,0.12)", borderColor: "rgba(156,39,176,0.3)" } },
+          React.createElement("div", { className: "sim-result-label" }, "\u5E74\u9593ARR"),
+          React.createElement("div", { className: "sim-result-val", style: { color: "#E1BEE7", fontSize: 30 } }, annualARR.toLocaleString() + React.createElement("span", { style: { fontSize: 14, color: "#8A9AAA" } }, "\u4E07\u5186")),
+          React.createElement("div", { className: "sim-result-sub" }, "\u00D7 " + monthlyTotal.toLocaleString() + "\u4E07 \u00D7 12\u30F6\u6708")
+        )
+      ),
+
+      // プリセットボタン
+      React.createElement("div", { style: { marginTop: 16, display: "flex", gap: 8, flexWrap: "wrap" } },
+        React.createElement("div", { style: { fontSize: 11, color: "#5A7A96", alignSelf: "center", marginRight: 4 } }, "\u30D7\u30EA\u30BB\u30C3\u30C8:"),
+        [
+          { label: "MAGNET by SHIBUYA109", v: 11288, f: 50, note: "412\u4E07/\u5E74" },
+          { label: "\u6E0B\u8C37\u30D2\u30AB\u30EA\u30A8", v: 54795, f: 18, note: "2000\u4E07/\u5E74" },
+          { label: "\u30B9\u30AF\u30E9\u30F3\u30D6\u30EB\u30B9\u30AF\u30A8\u30A2", v: 65753, f: 20, note: "2400\u4E07/\u5E74" },
+          { label: "\u5730\u65B9\u5546\u696D\u65BD\u8A2D\uFF08\u5C0F\u898F\u6A21\uFF09", v: 3000, f: 10, note: "" },
+        ].map(function(preset, i) {
+          return React.createElement("button", {
+            key: i,
+            style: {
+              fontFamily: "'Space Mono',monospace", fontSize: 10, padding: "5px 12px",
+              border: "1px solid rgba(156,39,176,0.3)", borderRadius: 4, background: "rgba(156,39,176,0.08)",
+              color: "#CE93D8", cursor: "pointer"
+            },
+            onClick: function() { setSimVisitors(preset.v); setSimForeignPct(preset.f); }
+          }, preset.label);
+        })
+      )
+    )
+  );
+}
+
+// ─────────────────────────────────────────────
 // メインコンポーネント
 // ─────────────────────────────────────────────
 
 function NNEXDashboard() {
-  const [tab, setTab] = useState("realtime");
+  const [tab, setTab] = useState("sales");
   const [showSettings, setShowSettings] = useState(false);
   const [apiKeys, setApiKeys] = useState(() => {
     try {
@@ -1274,6 +1687,12 @@ function NNEXDashboard() {
 
       // Tabs
       React.createElement("div", { className: "db-tabs" },
+        React.createElement("button", { className: "db-tab " + (tab === "sales" ? "active" : ""), onClick: () => setTab("sales") },
+          React.createElement("span", { className: "dot dot-sales" }), "\u55B6\u696D\u30A4\u30F3\u30B5\u30A4\u30C8"
+        ),
+        React.createElement("button", { className: "db-tab " + (tab === "poi" ? "active" : ""), onClick: () => setTab("poi") },
+          React.createElement("span", { className: "dot dot-poi" }), "POI\u30DE\u30C3\u30D7"
+        ),
         React.createElement("button", { className: "db-tab " + (tab === "realtime" ? "active" : ""), onClick: () => setTab("realtime") },
           React.createElement("span", { className: "dot dot-realtime" }), "\u30EA\u30A2\u30EB\u30BF\u30A4\u30E0"
         ),
@@ -1285,9 +1704,6 @@ function NNEXDashboard() {
         ),
         React.createElement("button", { className: "db-tab " + (tab === "fixed" ? "active" : ""), onClick: () => setTab("fixed") },
           React.createElement("span", { className: "dot dot-fixed" }), "\u56FA\u5B9A\u53C2\u7167\u5024"
-        ),
-        React.createElement("button", { className: "db-tab " + (tab === "poi" ? "active" : ""), onClick: () => setTab("poi") },
-          React.createElement("span", { className: "dot dot-poi" }), "POI\u30DE\u30C3\u30D7"
         ),
         React.createElement("button", { className: "settings-btn", onClick: () => setShowSettings(true) },
           "\u2699 Settings"
@@ -1318,7 +1734,8 @@ function NNEXDashboard() {
               allow: "geolocation"
             })
           )
-        )
+        ),
+        tab === "sales" && React.createElement(SalesTab)
       )
     ),
 
