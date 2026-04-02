@@ -1690,6 +1690,9 @@ function NNEXDashboard() {
         React.createElement("button", { className: "db-tab " + (tab === "sales" ? "active" : ""), onClick: () => setTab("sales") },
           React.createElement("span", { className: "dot dot-sales" }), "\u55B6\u696D\u30A4\u30F3\u30B5\u30A4\u30C8"
         ),
+        React.createElement("button", { className: "db-tab " + (tab === "positioning" ? "active" : ""), onClick: () => setTab("positioning") },
+          React.createElement("span", { className: "dot dot-sales" }), "\u7AF6\u5408\u30DE\u30C3\u30D7"
+        ),
         React.createElement("button", { className: "db-tab " + (tab === "poi" ? "active" : ""), onClick: () => setTab("poi") },
           React.createElement("span", { className: "dot dot-poi" }), "POI\u30DE\u30C3\u30D7"
         ),
@@ -1716,6 +1719,13 @@ function NNEXDashboard() {
         tab === "monthly" && React.createElement(MonthlyTab, { apiKeys }),
         tab === "annual" && React.createElement(AnnualTab),
         tab === "fixed" && React.createElement(FixedTab),
+        tab === "positioning" && React.createElement("div", { className: "poi-map-container" },
+          React.createElement("iframe", {
+            src: "./positioning/index.html",
+            title: "NNEX Positioning Map",
+            style: { width: "100%", height: "calc(100vh - 140px)", minHeight: 600, border: "none" }
+          })
+        ),
         tab === "poi" && React.createElement(React.Fragment, null,
           React.createElement("div", { className: "poi-map-header" },
             React.createElement("div", null,
